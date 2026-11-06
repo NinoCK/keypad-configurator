@@ -16,6 +16,7 @@ from . import win
 # light (fades, slow reports), so relative steps computed by HA overshoot or switch it back on.
 _level: dict[str, tuple[int, float]] = {}
 LEVEL_TRUST_S = 3.0  # after this long idle, re-read the real brightness (someone may have changed it)
+_cycle: dict[str, int] = {}  # entity -> index of the colour ha_color_cycle last set
 
 
 class ActionError(Exception):
@@ -143,6 +144,21 @@ def run(a: dict, ha, switch_profile, notify=_no_notify) -> None:
             ha().call("fan", "turn_on", {**e, "preset_mode": _need(a, "preset")})  # also works while it is off
         elif t == "ha_climate_mode":
             ha().call("climate", "set_hvac_mode", {**e, "hvac_mode": _need(a, "mode")})
+        elif t == "ha_color_cycle":
+            colors = [c for c in (a.get("colors") or [])[:max(1, min(8, int(a.get("count", 8))))] if c]
+            if not colors:
+                raise ActionError("no colours set")
+            i = _cycle[e["entity_id"]] = (_cycle.get(e["entity_id"], -1) + 1) % len(colors)
+            ha().call("light", "turn_on", {**e, "rgb_color": _rgb(colors[i])})
+        elif t == "ha_climate_cycle":
+            st = ha().state(e["entity_id"]) or {}
+            modes = [m for m in (st.get("attributes") or {}).get("hvac_modes") or [] if m != "off"]
+            if not modes:
+                raise ActionError(f"{e['entity_id']} reports no modes")
+            cur = st.get("state")
+            new = modes[(modes.index(cur) + 1) % len(modes)] if cur in modes else modes[0]
+            ha().call("climate", "set_hvac_mode", {**e, "hvac_mode": new})
+            notify(f"{_name(st, e['entity_id'])}: {new.replace('_', ' ')}")
         else:
             raise ActionError(f"unknown action {t}")
     elif t == "launch":
@@ -220,18 +236,28 @@ def knob(k: dict, units: int, ha, notify=_no_notify) -> None:
         cur = ((ha().state(e) or {}).get("attributes", {}).get("volume_level")) or 0
         ha().call("media_player", "volume_set", {"entity_id": e, "volume_level": round(min(1, max(0, cur + sign * amount / 100)), 2)})
     elif t == "ha_fan_speed":
+        # Left stops at the lowest speed, never off (on/off is a key or the knob press); right tops out at 100%.
         e = _need(k, "entity")
-        ha().call("fan", "increase_speed" if sign > 0 else "decrease_speed", {"entity_id": e, "percentage_step": min(amount, 100)})
+        st = ha().state(e) or {}
+        at = st.get("attributes") or {}
+        lo, pct = max(1, int(at.get("percentage_step") or 1)), at.get("percentage")
+        if sign > 0:
+            ha().call("fan", "increase_speed", {"entity_id": e, "percentage_step": min(amount, 100)})
+        elif st.get("state") != "on" or (pct is not None and pct <= lo):
+            pass
+        elif pct is None or pct - amount < lo:
+            ha().call("fan", "set_percentage", {"entity_id": e, "percentage": lo})
+        else:
+            ha().call("fan", "decrease_speed", {"entity_id": e, "percentage_step": min(amount, 100)})
         st = ha().state(e) or {}
         pct = (st.get("attributes") or {}).get("percentage")
         notify(f"{_name(st, e)}: {'off' if st.get('state') == 'off' else f'{pct}%'}")
     elif t == "ha_climate_temp":
         e = _need(k, "entity")
-        at = (ha().state(e) or {}).get("attributes", {})
-        lo, hi = at.get("min_temp", 16), at.get("max_temp", 30)
-        new = min(hi, max(lo, (at.get("temperature") or 24) + sign * amount * 0.5))  # one step = 0.5 degree
+        st = ha().state(e) or {}
+        new = climate_target(st, units, k)
         ha().call("climate", "set_temperature", {"entity_id": e, "temperature": new})
-        notify(f"{at.get('friendly_name') or e}: {new:g}°")
+        notify(f"{_name(st, e)}: {new:g}°")
     elif t == "scroll":
         win.wheel(sign * 40 * amount)  # 120 per notch = 3 lines, so 40 per line
     elif t == "zoom":
@@ -242,3 +268,10 @@ def knob(k: dict, units: int, ha, notify=_no_notify) -> None:
             win.send_combo(combo)
     else:
         raise ActionError(f"unknown knob action {t}")
+
+
+def climate_target(st: dict, units: int, k: dict) -> float:
+    """Temperature `units` knob steps from the AC's current setting. One step = 0.5 degree x strength."""
+    at = st.get("attributes") or {}
+    lo, hi = at.get("min_temp", 16), at.get("max_temp", 30)
+    return min(hi, max(lo, (at.get("temperature") or 24) + units * max(1, int(k.get("step", 1))) * 0.5))

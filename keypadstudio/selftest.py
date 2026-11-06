@@ -113,6 +113,71 @@ def test_brightness_knob():
     assert sent == [("turn_off", None), ("turn_off", None), ("turn_on", 75), ("turn_on", 100)], sent  # never back on from stale state
 
 
+def test_keys_mode():
+    e = FakeEngine(mode="keys", longPress="none")
+    e.profile("pc")["knob"]["press"] = {"type": "media", "label": "press"}
+    press(e, 1, 0, 0.1)
+    assert e.switched == ["pc"] and e.ran == [], (e.switched, e.ran)
+    press(e, 4, 1, 1.1)                  # no 5th profile: nothing
+    press(e, 6, 2, 2.1)
+    assert e.switched == ["pc"] and e.ran == ["press"], (e.switched, e.ran)
+
+
+def test_ha_actions():
+    from keypadstudio import actions
+    sent = []
+
+    class HA:
+        st = {}
+        def state(self, e): return self.st
+        def call(self, d, s, data): sent.append((s, data.get("percentage") or data.get("hvac_mode") or data.get("rgb_color")))
+
+    fan = {"type": "ha_fan_speed", "entity": "fan.x", "step": 10}
+    HA.st = {"state": "on", "attributes": {"percentage": 40, "percentage_step": 33.33}}
+    actions.knob(fan, -1, HA)            # 40 - 10 would drop below the lowest speed: clamp to 33
+    HA.st["attributes"]["percentage"] = 33
+    actions.knob(fan, -1, HA)            # already lowest: nothing, never off
+    HA.st = {"state": "off", "attributes": {}}
+    actions.knob(fan, -3, HA)            # off stays off
+    assert sent == [("set_percentage", 33)], sent
+    sent.clear()
+    HA.st = {"state": "heat", "attributes": {"hvac_modes": ["off", "cool", "heat", "auto"]}}
+    actions.run({"type": "ha_climate_cycle", "entity": "climate.x"}, HA, None)
+    HA.st["state"] = "auto"
+    actions.run({"type": "ha_climate_cycle", "entity": "climate.x"}, HA, None)  # wraps, skips off
+    cyc = {"type": "ha_color_cycle", "entity": "light.x", "count": 2, "colors": ["#ff0000", "#00ff00", "#0000ff"]}
+    actions._cycle.clear()
+    for _ in range(3):
+        actions.run(cyc, HA, None)
+    assert sent == [("set_hvac_mode", "auto"), ("set_hvac_mode", "cool"),
+                    ("turn_on", [255, 0, 0]), ("turn_on", [0, 255, 0]), ("turn_on", [255, 0, 0])], sent
+
+
+def test_ac_settle():
+    import threading
+    import time
+    from keypadstudio import actions
+    sent = []
+
+    class HA:
+        def state(self, e): return {"attributes": {"temperature": 24}}
+        def call(self, d, s, data): sent.append(data["temperature"])
+
+    e = engine.Engine(copy.deepcopy(config.DEFAULT))
+    e.profile()["knob"].update(type="ha_climate_temp", entity="climate.x", step=1)
+    e.ha, e.notify, e.refresh_live = HA, lambda *a, **k: None, lambda: None
+    old, engine.SETTLE_S = engine.SETTLE_S, 0.15
+    try:
+        threading.Thread(target=e._knob_worker, daemon=True).start()
+        e._knob(1); time.sleep(0.05); e._knob(-1); time.sleep(0.3)   # nudge and back: nothing sent
+        e._knob(1); time.sleep(0.05); e._knob(1); time.sleep(0.05)
+        assert sent == [], sent                                        # still turning
+        time.sleep(0.3)
+        assert sent == [25.0], sent                                    # one request after it settles
+    finally:
+        engine.SETTLE_S = old
+
+
 def test_flip():
     e = FakeEngine(flip=True)
     e.profile()["keys"][0]["tap"]["label"] = "top-left"

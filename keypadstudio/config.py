@@ -47,7 +47,8 @@ DEFAULT = {
     ],
     "ha": {"url": "http://homeassistant.local:8123"},
     "settings": {"startup": False, "osd": True, "dblPrev": False, "longPress": "picker",
-                 "autoSwitch": False, "sleepLocked": True, "ledBrightness": 1, "flip": False},
+                 "autoSwitch": False, "sleepLocked": True, "ledBrightness": 1, "flip": False,
+                 "mode": "knob"},  # knob: press = next profile. keys: keys 1-6 = profiles, press = knob.press
 }
 
 
@@ -79,6 +80,8 @@ def validate(cfg: object) -> dict:
     from .lighting import migrate
     for p in out["profiles"]:
         migrate(p)
+        if not isinstance(p["knob"].get("press"), dict) or not isinstance(p["knob"]["press"].get("type"), str):
+            p["knob"]["press"] = {"type": "none"}
         if not isinstance(p.get("live"), dict) or p["live"].get("type") not in ("none", "light", "climate", "air"):
             p["live"] = {"type": "none"}
     out["ha"] = {"url": str((cfg.get("ha") or {}).get("url", ""))}  # the token never goes in this file

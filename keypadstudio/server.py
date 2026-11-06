@@ -71,7 +71,7 @@ def make_routes(app):
 
     def run(body):
         p = eng.profile(body.get("profile"))
-        a = p["keys"][int(body["key"])][body.get("slot", "tap")]
+        a = p["knob"]["press"] if body["key"] == "knob" else p["keys"][int(body["key"])][body.get("slot", "tap")]
         try:
             actions.run(a, eng.ha, eng.activate, eng.notify)
         except Exception as e:

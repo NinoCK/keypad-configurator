@@ -209,11 +209,14 @@ async function api(path, method = 'GET', body) {
 
 /* ---------- catalogues ---------- */
 const ent = (domain = 'any', l = 'Entity') => ({k:'entity', l, t:'entity', domain});
+const CYCLE = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#03b8fc', '#5856d6', '#ff2d92', '#ffffff'];
 const ACTIONS = {
   none:            {g:'General',        l:'Do nothing', f:[]},
   ha_light:        {g:'Lights',         l:'Set light colour & brightness', f:[ent('light','Light'), {k:'color',l:'Colour',t:'color',d:'#ffb46b'}, {k:'brightness',l:'Brightness',t:'range',min:1,max:100,d:80,unit:'%'}]},
   ha_white:        {g:'Lights',         l:'Set light to white', f:[ent('light','Light'), {k:'kelvin',l:'Warmth (2700 = warm, 6500 = cool)',t:'range',min:2000,max:6500,d:4000,unit:' K'}, {k:'brightness',l:'Brightness',t:'range',min:1,max:100,d:80,unit:'%'}]},
+  ha_color_cycle:  {g:'Lights',         l:'Cycle through colours', f:[ent('light','Light'), {k:'count',l:'How many colours',t:'range',min:2,max:8,d:4,unit:''}, {k:'colors',l:'Colours',t:'colors',d:CYCLE}]},
   ha_climate_mode: {g:'Climate & air',  l:'Set air conditioner mode', f:[ent('climate','Air conditioner'), {k:'mode',l:'Mode',t:'opt'}]},
+  ha_climate_cycle:{g:'Climate & air',  l:'Next air conditioner mode', f:[ent('climate','Air conditioner')]},
   ha_fan_preset:   {g:'Climate & air',  l:'Set purifier / fan mode', f:[ent('fan','Purifier or fan'), {k:'preset',l:'Mode',t:'opt'}]},
   ha_toggle:       {g:'Home Assistant', l:'Turn on / off', f:[ent()]},
   ha_scene:        {g:'Home Assistant', l:'Activate scene', f:[ent('scene','Scene')]},
@@ -320,6 +323,7 @@ function field(f, base, obj = P()) {
   const lab = `<span>${esc(f.l)}</span>`;
   switch (f.t) {
     case 'color':   return `<label class="f">${lab}<input type="color" ${b} value="${esc(v)}"></label>`;
+    case 'colors':  return `<div class="f">${lab}<span class="row">${v.slice(0, getPath(obj, base + '.count') || 4).map((c, i) => `<input type="color" data-bind="${path}.${i}" value="${esc(c)}">`).join('')}</span></div>`;
     case 'range':   return `<label class="f"><span>${esc(f.l)}: <output>${esc(v)}${f.unit||''}</output></span><input type="range" ${b} min="${f.min}" max="${f.max}" value="${esc(v)}" data-unit="${f.unit||''}"></label>`;
     case 'bool':    return `<label class="check" style="border:0;padding:0"><input type="checkbox" ${b} ${v ? 'checked' : ''}><b>${esc(f.l)}</b></label>`;
     case 'textarea':return `<label class="f">${lab}<textarea ${b} placeholder="${esc(f.ph||'')}">${esc(v)}</textarea></label>`;
@@ -374,7 +378,7 @@ function padHTML(p) {
   return `<div class="pad${flip ? ' flip' : ''}">
     <div class="pad-body">
       ${p.keys.map((kk, i) => `<button class="key" data-key="${i}" aria-pressed="${sel.kind==='key'&&sel.i===i}" style="grid-column:${i%3+(flip?2:1)};grid-row:${(i/3|0)+1}">
-        <b>${esc(kk.label || summary(kk.tap) || 'Key '+(i+1))}</b><small>${kk.hold.type!=='none'?'+ hold':''}</small></button>`).join('')}
+        ${S.settings.mode === 'keys' ? `<b>${esc(S.profiles[i]?.name || '—')}</b><small>profile</small>` : `<b>${esc(kk.label || summary(kk.tap) || 'Key '+(i+1))}</b><small>${kk.hold.type!=='none'?'+ hold':''}</small>`}</button>`).join('')}
       <div class="knob-wrap" style="grid-column:${flip?1:4}"><button class="knob" data-knob aria-pressed="${sel.kind==='knob'}" aria-label="Edit knob"></button><span class="knob-cap">${esc(k.s)}${p.knob.entity ? '<br>' + esc(ename(p.knob.entity) || p.knob.entity) : ''}</span></div>
     </div>
   </div>`;
@@ -409,7 +413,12 @@ function liveChip(p) {
 function inspectorHTML(p) {
   if (sel.kind === 'knob') {
     const k = KNOB[p.knob.type] || KNOB.volume;
-    return `<div class="card"><h2>Knob</h2><p class="desc">What turning does in this profile. Pressing the knob switches profile.</p><div class="fields">
+    const keysMode = S.settings.mode === 'keys', pr = p.knob.press ||= {type:'none'};
+    const press = keysMode ? `<h2 style="margin-top:20px">Pressing the knob</h2><div class="fields">
+      ${actionSelect('knob.press.type', pr.type)}
+      ${(ACTIONS[pr.type] || ACTIONS.none).f.map(f => field(f, 'knob.press')).join('')}
+      ${pr.type!=='none' ? `<div><button class="btn" data-act="test">Run now</button></div>` : ''}</div>` : '';
+    return `<div class="card"><h2>Knob</h2><p class="desc">What turning does in this profile. ${keysMode ? 'The keys switch profile.' : 'Pressing the knob switches profile.'}</p><div class="fields">
       <label class="f"><span>Turning controls</span><select data-bind="knob.type" data-retype>${Object.entries(KNOB).map(([v, o]) => `<option value="${v}" ${v===p.knob.type?'selected':''}>${esc(o.l)}</option>`).join('')}</select></label>
       ${(k.f||[]).map(f => field(f, 'knob')).join('')}
       ${audioNote(k.note)}
@@ -417,11 +426,12 @@ function inspectorHTML(p) {
       ${field({k:'sens', l:'Sensitivity', t:'select', opts:{1:'Every click of the knob', 2:'Every 2 clicks', 3:'Every 3 clicks'}}, 'knob')}
       ${field({k:'accel', l:'Speed up when turned fast', t:'bool'}, 'knob')}
       ${field({k:'invert', l:'Reverse direction', t:'bool'}, 'knob')}
-    </div></div>`;
+    </div>${press}</div>`;
   }
   const kk = p.keys[sel.i], a = kk[slot], base = `keys.${sel.i}.${slot}`;
   return `<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Key ${sel.i + 1}</h2>
       <div class="subtabs" role="tablist"><button role="tab" data-slot="tap" aria-selected="${slot==='tap'}">Press</button><button role="tab" data-slot="hold" aria-selected="${slot==='hold'}">Hold${kk.hold.type!=='none'?' ●':''}</button></div></div>
+    ${S.settings.mode === 'keys' ? `<p class="note">The keys switch profile right now (Settings), so this key opens ${esc(S.profiles[sel.i]?.name || 'nothing')}. The action below is kept for the other mode.</p>` : ''}
     <div class="fields">
     <label class="f"><span>Label on screen</span><input data-bind="keys.${sel.i}.label" value="${esc(kk.label)}" placeholder="${esc(summary(kk.tap) || 'Name shown on the key')}"></label>
     ${actionSelect(base + '.type', a.type)}
@@ -541,7 +551,10 @@ function viewSettings() {
   $('#main').innerHTML = `<h1>Settings</h1><p class="sub">How the app behaves in the background.</p>
     ${SETTINGS.map(([title, items], gi) => `<div class="card" style="max-width:720px"><h2 style="margin-bottom:12px">${title}</h2>
       ${items.map(([k, l, d]) => `<label class="check"><input type="checkbox" data-gbind="settings.${k}" ${S.settings[k]?'checked':''}><span><b>${l}</b><small>${d}</small></span></label>`).join('')}
-      ${gi === 1 ? `<label class="f" style="max-width:380px;margin-top:8px"><span>Hold the knob down</span><select data-gbind="settings.longPress">
+      ${gi === 1 ? `<label class="f" style="max-width:380px;margin-top:8px"><span>Keys and knob press</span><select data-gbind="settings.mode">
+        ${Object.entries({knob:'Knob press switches profile, keys run actions', keys:'Keys 1–6 switch profile, knob press runs an action'}).map(([k, l]) => `<option value="${k}" ${(S.settings.mode||'knob')===k?'selected':''}>${l}</option>`).join('')}
+      </select></label>
+      <label class="f" style="max-width:380px;margin-top:8px"><span>Hold the knob down</span><select data-gbind="settings.longPress">
         ${Object.entries({none:'Nothing', picker:'Pick a profile: hold, turn, release', mute:'Mute speakers', mic:'Mute / unmute microphone'}).map(([k, l]) => `<option value="${k}" ${S.settings.longPress===k?'selected':''}>${l}</option>`).join('')}
       </select></label>` : ''}</div>`).join('')}
     <div class="card" style="max-width:720px"><h2>Files</h2><p class="desc">Config and log are in <kbd>${esc((ST.logPath||'').replace(/[^\\]+$/, ''))}</kbd></p>
@@ -552,7 +565,7 @@ function viewHelp() {
   $('#main').innerHTML = `<h1>Help</h1><p class="sub">What happens between a key press and a device reacting.</p>
     <div class="card"><h2>The knob</h2><table><tbody>
       <tr><td>Turn</td><td>Whatever the profile sets: volume, brightness, AC temperature, fan speed…</td></tr>
-      <tr><td>Press</td><td>Next profile${S.settings.dblPrev ? '; double-press for the previous one' : ''}</td></tr>
+      <tr><td>Press</td><td>${S.settings.mode === 'keys' ? 'The profile’s knob-press action (keys 1–6 pick the profile)' : 'Next profile' + (S.settings.dblPrev ? '; double-press for the previous one' : '')}</td></tr>
       <tr><td>Hold, turn, release</td><td>${S.settings.longPress === 'picker' ? 'Pick any profile' : 'Set in Settings'}</td></tr>
     </tbody></table></div>
     <div class="card"><h2>How it works</h2><ol class="flow">
@@ -578,19 +591,19 @@ const refreshPad = () => { const pad = document.querySelector('.pad'); if (pad) 
 const white = (e, kelvin, brightness, label) => K(label, {type:'ha_white', entity:e, kelvin, brightness});
 const TEMPLATES = {
   light: {l:'Light', d:'Presets on the keys, brightness on the knob. The keypad dims with the light.', domain:'light', color:'#ffb347',
-    make: e => ({knob:{type:'ha_brightness', entity:e, step:10}, live:{type:'light', entity:e, useColor:true},
+    make: e => ({knob:{type:'ha_brightness', entity:e, step:10, press:{type:'ha_color_cycle', entity:e, count:4, colors:[...CYCLE]}}, live:{type:'light', entity:e, useColor:true},
       keys:[white(e, 2700, 100, 'Warm'), white(e, 5000, 100, 'Daylight'), K('Colour', {type:'ha_light', entity:e, color:'#03b8fc', brightness:100}),
             K('On / off', {type:'ha_toggle', entity:e}), white(e, 2200, 15, 'Dim'), white(e, 4000, 50, 'Half')]})},
   purifier: {l:'Air purifier', d:'Modes on the keys, fan speed on the knob. The keypad shows air quality.', domain:'fan', color:'#3ad29f',
     make: (e, s) => { const opts = (ENTS[e]?.opts || []).slice(0, 4), keys = opts.map(o => K(o, {type:'ha_fan_preset', entity:e, preset:o}));
       keys.push(K('On / off', {type:'ha_toggle', entity:e})); while (keys.length < 6) keys.push(blankKey());
-      return {knob:{type:'ha_fan_speed', entity:e, step:Math.min(50, Math.ceil(ENTS[e]?.step || 10))}, live:s ? {type:'air', entity:s} : {type:'none'}, keys}; }},
+      return {knob:{type:'ha_fan_speed', entity:e, press:{type:'ha_toggle', entity:e}, step:Math.min(50, Math.ceil(ENTS[e]?.step || 10))}, live:s ? {type:'air', entity:s} : {type:'none'}, keys}; }},
   ac: {l:'Air conditioner', d:'A mode on each key, temperature on the knob. The keypad shows the mode.', domain:'climate', color:'#2f8bff',
     make: e => { const sup = ENTS[e]?.opts, modes = ['cool','heat','auto','dry','fan_only','off'].filter(m => !sup?.length || sup.includes(m));
       const keys = modes.map(m => K(LT.modes[m] || m, {type:'ha_climate_mode', entity:e, mode:m})); while (keys.length < 6) keys.push(blankKey());
-      return {knob:{type:'ha_climate_temp', entity:e, step:1}, live:{type:'climate', entity:e}, keys}; }},
+      return {knob:{type:'ha_climate_temp', entity:e, step:1, press:{type:'ha_climate_cycle', entity:e}}, live:{type:'climate', entity:e}, keys}; }},
   pc: {l:'PC & media', d:'Apps, media keys and system volume.', color:'#4f8cff',
-    make: () => ({knob:{type:'volume', step:2, accel:true}, live:{type:'none'}, keys:[
+    make: () => ({knob:{type:'volume', step:2, accel:true, press:{type:'media', cmd:'play_pause'}}, live:{type:'none'}, keys:[
       K('Browser', {type:'url', url:'https://www.google.com'}), K('Notepad', {type:'launch', path:'notepad.exe', args:''}), K('Terminal', {type:'launch', path:'wt.exe', args:''}),
       K('Play/pause', {type:'media', cmd:'play_pause'}), K('Next', {type:'media', cmd:'next'}), K('Snip', {type:'hotkey', keys:'Win+Shift+S'})]})},
   blank: {l:'Blank', d:'Six empty keys and the volume knob.', color:'#a0a7b4',
@@ -680,13 +693,14 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const el = e.target;
   if (el.closest('dialog')) { if (el.id === 'newEnt') { readNew(); NEW.sensor = NEW.tpl === 'purifier' ? bestSensor(NEW.entity) : ''; newDialog(); } return; }
-  if ('ent' in el.dataset || el.dataset.bind?.startsWith('live.')) { render(); return; }  // mode lists and previews depend on these
+  if ('ent' in el.dataset || el.dataset.bind?.startsWith('live.') || el.dataset.bind?.endsWith('.count')) { render(); return; }  // mode lists, previews and colour rows depend on these
+  if (el.dataset.gbind === 'settings.mode') { render(); return; }
   if (!('retype' in el.dataset)) return;
   const path = el.dataset.bind.replace(/\.type$/, ''), isKnob = path === 'knob', def = isKnob ? KNOB : ACTIONS;
   const old = getPath(P(), path), next = {type: el.value};
   if (old.entity) next.entity = old.entity;
-  if (isKnob) Object.assign(next, {step: Math.min(old.step || 5, KNOB[el.value].max), sens: old.sens || 1, accel: !!old.accel, invert: !!old.invert});
-  for (const f of (def[el.value].f || [])) if (f.d !== undefined && next[f.k] === undefined) next[f.k] = f.d;
+  if (isKnob) Object.assign(next, {step: Math.min(old.step || 5, KNOB[el.value].max), sens: old.sens || 1, accel: !!old.accel, invert: !!old.invert, press: old.press || {type:'none'}});
+  for (const f of (def[el.value].f || [])) if (f.d !== undefined && next[f.k] === undefined) next[f.k] = clone(f.d);
   for (const f of (def[el.value].f || [])) if (f.t === 'entity' && f.domain !== 'any' && domainOf(next.entity) !== f.domain) next.entity = guessEntity(P(), f.domain);
   setPath(P(), path, next); render(); save();
 });
@@ -717,7 +731,7 @@ const ACTS = {
     if (t.domain && !NEW.entity) { toast('Pick a device first.'); return; }
     const made = t.make(NEW.entity, NEW.sensor);
     addProfile({id: uid(), name: NEW.name.trim() || defaultName(), color: t.color, led: 'steady', apps: '', ...made,
-      knob: {step: 2, sens: 1, accel: false, invert: false, ...made.knob}});
+      knob: {step: 2, sens: 1, accel: false, invert: false, press: {type: 'none'}, ...made.knob}});
     $('#dlg').close(); toast('Profile created. It is active now.');
   },
   dupProfile() { const p = clone(P()); p.id = uid(); p.name += ' copy'; addProfile(p); },
@@ -728,7 +742,7 @@ const ACTS = {
   },
   enableAuto() { S.settings.autoSwitch = true; render(); save(); },
   stopPreview() { PREVIEW = null; render(); },
-  test(btn) { busy(btn, async () => { await flush(); await api('/api/run', 'POST', {profile: P().id, key: sel.i, slot}); toast('Done.'); }); },
+  test(btn) { busy(btn, async () => { await flush(); await api('/api/run', 'POST', {profile: P().id, key: sel.kind === 'knob' ? 'knob' : sel.i, slot}); toast('Done.'); }); },
   browse(btn) { busy(btn, async () => { const r = await api('/api/browse', 'POST'); if (r.path) { setPath(P(), btn.dataset.for, r.path.replace(/\//g, '\\')); render(); save(); } }); },
   saveToken(btn) { busy(btn, async () => { await api('/api/token', 'POST', {token: $('#tok').value}); ST.tokenSet = true; await loadEntities(); render(); toast('Token saved.'); }); },
   removeToken(btn) { if (confirm('Remove the saved Home Assistant token?')) busy(btn, async () => { await api('/api/token', 'POST', {remove: true}); ST.tokenSet = false; setEntities([]); render(); toast('Token removed.'); }); },

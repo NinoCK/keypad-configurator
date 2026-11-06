@@ -19,6 +19,7 @@ DOUBLE_S = 0.3    # second knob press within this = previous profile
 FAST_S, VFAST_S = 0.12, 0.06  # knob tick gaps that count as fast / very fast
 REVERSE_S = 0.25  # an opposite knob click this soon after a click is encoder bounce (raise if it still slips through)
 POLL_S = 2.0      # how often the live light re-reads its Home Assistant entity
+SETTLE_S = 0.8    # AC temperature is sent once the knob has rested this long (every request beeps the AC)
 
 
 class Engine:
@@ -102,7 +103,10 @@ class Engine:
             return
         if index < 6 and self.settings.get("flip"):
             index = 5 - index  # keypad turned 180 degrees: profiles stay in the order the user sees
-        if index < 6:
+        if index < 6 and self.settings.get("mode") == "keys":
+            if down and index < len(self.cfg["profiles"]):
+                self.activate(self.cfg["profiles"][index]["id"])
+        elif index < 6:
             self._key(index, down, now)
         elif index == 6:
             self._knob_press(down, now)
@@ -137,6 +141,8 @@ class Engine:
             self.activate(pid)
         elif self.knob_hold_fired:
             pass
+        elif self.settings.get("mode") == "keys":
+            self._run(self.profile()["knob"].get("press") or {"type": "none"})
         elif self.settings.get("dblPrev"):
             if self.timers.pop("double", None):
                 self.cycle(-1)
@@ -207,13 +213,29 @@ class Engine:
             self._knob_wake.wait()
             self._knob_wake.clear()
             with self.lock:
-                units, self._knob_units = self._knob_units, 0
                 knob = dict(self.profile()["knob"])
             try:
+                if knob.get("type") == "ha_climate_temp":
+                    self._settle(knob)
+                with self.lock:
+                    units, self._knob_units = self._knob_units, 0
                 actions.knob(knob, units, self.ha, self.notify)
             except Exception as e:
                 self._fail(e)
             self.refresh_live()
+
+    def _settle(self, knob: dict) -> None:
+        """Show the target temperature while the knob moves; return once it has rested SETTLE_S.
+        A nudge that comes back to where it started sends nothing (knob() skips 0 units)."""
+        e = knob.get("entity", "")
+        st = self.ha().state(e) or {}
+        while True:
+            with self.lock:
+                units = self._knob_units
+            self.notify(f"{actions._name(st, e)}: {actions.climate_target(st, units, knob):g}°")
+            if not self._knob_wake.wait(SETTLE_S):
+                return
+            self._knob_wake.clear()
 
     def _fail(self, e: Exception) -> None:
         logging.warning("action failed: %s", e)
