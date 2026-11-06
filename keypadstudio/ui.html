@@ -9,18 +9,19 @@
   --bg:#f4f5f7;--panel:#ffffff;--panel2:#eef0f3;--text:#14161b;--muted:#5e6573;--line:#dfe2e8;
   --accent:#3563e9;--accent-soft:#e6ecfd;--accent-text:#fff;--danger:#c93c3c;--ok:#1f8a4c;--warn:#b7791f;
   --body:#1b1e23;--cap:#353a43;--cap-text:#eceef2;--cap-edge:#464c57;--shadow:0 1px 2px rgba(16,24,40,.06);
+  color-scheme:light;
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --bg:#101215;--panel:#171a1f;--panel2:#20242b;--text:#e7e9ee;--muted:#9aa1ae;--line:#292e36;
     --accent:#6d8dff;--accent-soft:#1d2540;--accent-text:#0d1020;--danger:#ff6b6b;--ok:#4cc38a;--warn:#e0a84a;
-    --body:#0a0c0f;--cap:#2a2e36;--cap-text:#e7e9ee;--cap-edge:#383e48;--shadow:none;
+    --body:#0a0c0f;--cap:#2a2e36;--cap-text:#e7e9ee;--cap-edge:#383e48;--shadow:none;color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
   --bg:#101215;--panel:#171a1f;--panel2:#20242b;--text:#e7e9ee;--muted:#9aa1ae;--line:#292e36;
   --accent:#6d8dff;--accent-soft:#1d2540;--accent-text:#0d1020;--danger:#ff6b6b;--ok:#4cc38a;--warn:#e0a84a;
-  --body:#0a0c0f;--cap:#2a2e36;--cap-text:#e7e9ee;--cap-edge:#383e48;--shadow:none;
+  --body:#0a0c0f;--cap:#2a2e36;--cap-text:#e7e9ee;--cap-edge:#383e48;--shadow:none;color-scheme:dark;
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
@@ -69,11 +70,24 @@ h3{font-size:13px;margin:0 0 8px}
 label.f{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);min-width:0}
 label.f>span{display:flex;gap:6px;align-items:center}
 .f input:not([type=color]):not([type=range]):not([type=checkbox]),.f select,.f textarea,.ctl{
-  background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;color:var(--text);min-width:0;width:100%}
+  background-color:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;color:var(--text);min-width:0;width:100%}
 .f textarea{min-height:64px;resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:12px}
 input[type=color]{width:44px;height:34px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer;flex:none}
 input[type=range]{width:100%;accent-color:var(--accent)}
 input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+select{appearance:none;cursor:pointer;padding-right:30px!important;background-repeat:no-repeat;background-position:right 10px center;background-size:12px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 4.5 6 8l3.5-3.5' fill='none' stroke='%239aa1ae' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+select:hover{border-color:var(--muted)!important}
+option{background:var(--panel);color:var(--text)}
+optgroup{background:var(--panel);color:var(--muted);font-style:normal}
+/* action picker */
+.apick{display:grid;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)}
+.agrp small{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px}
+.achips{display:flex;flex-wrap:wrap;gap:6px}
+.achip{all:unset;box-sizing:border-box;cursor:pointer;font-size:12px;color:var(--text);padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel);transition:border-color .12s,background .12s}
+.achip:hover{border-color:var(--muted)}
+.achip[aria-checked="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
+.achip:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .ename{font-size:11px;color:var(--muted);min-height:15px}
 .check{display:flex;gap:12px;align-items:flex-start;padding:10px 0;cursor:pointer;border-top:1px solid var(--line)}
 .check:first-child{border-top:0;padding-top:0}
@@ -342,8 +356,8 @@ function field(f, base, obj = P()) {
 }
 const actionSelect = (path, cur) => {
   const groups = {};
-  for (const [k, a] of Object.entries(ACTIONS)) (groups[a.g] ||= []).push(`<option value="${k}" ${k===cur?'selected':''}>${esc(a.l)}</option>`);
-  return `<label class="f"><span>Action</span><select data-bind="${path}" data-retype>${Object.entries(groups).map(([g, o]) => `<optgroup label="${g}">${o.join('')}</optgroup>`).join('')}</select></label>`;
+  for (const [k, a] of Object.entries(ACTIONS)) (groups[a.g] ||= []).push(`<button type="button" class="achip" role="radio" aria-checked="${k===cur}" data-atype="${k}" data-apath="${path}">${esc(a.l)}</button>`);
+  return `<div class="f"><span>Action</span><div class="apick" role="radiogroup" aria-label="Action">${Object.entries(groups).map(([g, b]) => `<div class="agrp"><small>${g}</small><div class="achips">${b.join('')}</div></div>`).join('')}</div></div>`;
 };
 const fxSelect = (path, cur) => `<select class="ctl" data-bind="${path}">${Object.entries(FX).map(([k, l]) => `<option value="${k}" ${k===cur?'selected':''}>${l}</option>`).join('')}</select>`;
 const summary = a => {
@@ -643,7 +657,7 @@ function readNew() {
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-view],[data-pick],[data-move],[data-key],[data-knob],[data-slot],[data-ptab],[data-live],[data-flip],[data-tpl],[data-preview],[data-act]');
+  const t = e.target.closest('[data-view],[data-pick],[data-move],[data-key],[data-knob],[data-slot],[data-ptab],[data-live],[data-flip],[data-tpl],[data-preview],[data-act],[data-atype]');
   if (!t) return;
   const d = t.dataset;
   if (d.view) { e.preventDefault(); view = d.view; render(); }
@@ -658,6 +672,7 @@ document.addEventListener('click', e => {
   else if (d.tpl) { readNew(); NEW.tpl = d.tpl; NEW.name = ''; NEW.sensor = ''; newDialog(); }
   else if (d.preview) { const [color, fx] = d.preview.split('|'); PREVIEW = {color, fx, level:1}; render(); }
   else if (d.act) { e.preventDefault(); ACTS[d.act]?.(t); }
+  else if (d.atype) { if (d.atype !== getPath(P(), d.apath)) retype(d.apath, d.atype); }
 });
 
 function guessEntity(p, domain) {
@@ -695,15 +710,17 @@ document.addEventListener('change', e => {
   if (el.closest('dialog')) { if (el.id === 'newEnt') { readNew(); NEW.sensor = NEW.tpl === 'purifier' ? bestSensor(NEW.entity) : ''; newDialog(); } return; }
   if ('ent' in el.dataset || el.dataset.bind?.startsWith('live.') || el.dataset.bind?.endsWith('.count')) { render(); return; }  // mode lists, previews and colour rows depend on these
   if (el.dataset.gbind === 'settings.mode') { render(); return; }
-  if (!('retype' in el.dataset)) return;
-  const path = el.dataset.bind.replace(/\.type$/, ''), isKnob = path === 'knob', def = isKnob ? KNOB : ACTIONS;
-  const old = getPath(P(), path), next = {type: el.value};
-  if (old.entity) next.entity = old.entity;
-  if (isKnob) Object.assign(next, {step: Math.min(old.step || 5, KNOB[el.value].max), sens: old.sens || 1, accel: !!old.accel, invert: !!old.invert, press: old.press || {type:'none'}});
-  for (const f of (def[el.value].f || [])) if (f.d !== undefined && next[f.k] === undefined) next[f.k] = clone(f.d);
-  for (const f of (def[el.value].f || [])) if (f.t === 'entity' && f.domain !== 'any' && domainOf(next.entity) !== f.domain) next.entity = guessEntity(P(), f.domain);
-  setPath(P(), path, next); render(); save();
+  if ('retype' in el.dataset) retype(el.dataset.bind, el.value);
 });
+function retype(bind, type) {  // switch an action/knob to a new type, keeping what carries over
+  const path = bind.replace(/\.type$/, ''), isKnob = path === 'knob', def = isKnob ? KNOB : ACTIONS;
+  const old = getPath(P(), path), next = {type};
+  if (old.entity) next.entity = old.entity;
+  if (isKnob) Object.assign(next, {step: Math.min(old.step || 5, KNOB[type].max), sens: old.sens || 1, accel: !!old.accel, invert: !!old.invert, press: old.press || {type:'none'}});
+  for (const f of (def[type].f || [])) if (f.d !== undefined && next[f.k] === undefined) next[f.k] = clone(f.d);
+  for (const f of (def[type].f || [])) if (f.t === 'entity' && f.domain !== 'any' && domainOf(next.entity) !== f.domain) next.entity = guessEntity(P(), f.domain);
+  setPath(P(), path, next); render(); save();
+}
 document.addEventListener('keydown', e => {
   const el = e.target;
   if (el.classList?.contains('title') && e.key === 'Enter') { el.blur(); return; }

@@ -132,14 +132,19 @@ def test_ha_actions():
         def state(self, e): return self.st
         def call(self, d, s, data): sent.append((s, data.get("percentage") or data.get("hvac_mode") or data.get("rgb_color")))
 
-    fan = {"type": "ha_fan_speed", "entity": "fan.x", "step": 10}
-    HA.st = {"state": "on", "attributes": {"percentage": 40, "percentage_step": 33.33}}
-    actions.knob(fan, -1, HA)            # 40 - 10 would drop below the lowest speed: clamp to 33
+    fan = {"type": "ha_fan_speed", "entity": "fan.x", "step": 34}  # the purifier template's strength
+    HA.st = {"state": "on", "attributes": {"percentage": 33, "percentage_step": 33.33}}
+    actions.knob(fan, 1, HA)             # level 1 -> 2 must be 66, not 67 (purifiers round 67 up to level 3)
+    HA.st["attributes"]["percentage"] = 66
+    actions.knob(fan, 1, HA)             # 2 -> 3
+    HA.st["attributes"]["percentage"] = 100
+    actions.knob(fan, 1, HA)             # already top: nothing
     HA.st["attributes"]["percentage"] = 33
     actions.knob(fan, -1, HA)            # already lowest: nothing, never off
-    HA.st = {"state": "off", "attributes": {}}
+    HA.st = {"state": "off", "attributes": {"percentage_step": 33.33}}
     actions.knob(fan, -3, HA)            # off stays off
-    assert sent == [("set_percentage", 33)], sent
+    actions.knob(fan, 1, HA)             # off -> level 1
+    assert sent == [("set_percentage", 66), ("set_percentage", 100), ("set_percentage", 33)], sent
     sent.clear()
     HA.st = {"state": "heat", "attributes": {"hvac_modes": ["off", "cool", "heat", "auto"]}}
     actions.run({"type": "ha_climate_cycle", "entity": "climate.x"}, HA, None)

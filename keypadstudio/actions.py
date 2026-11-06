@@ -236,22 +236,21 @@ def knob(k: dict, units: int, ha, notify=_no_notify) -> None:
         cur = ((ha().state(e) or {}).get("attributes", {}).get("volume_level")) or 0
         ha().call("media_player", "volume_set", {"entity_id": e, "volume_level": round(min(1, max(0, cur + sign * amount / 100)), 2)})
     elif t == "ha_fan_speed":
-        # Left stops at the lowest speed, never off (on/off is a key or the knob press); right tops out at 100%.
+        # Moves in whole speed levels. Left stops at level 1, never off (on/off is a key or the knob press).
+        # We set the level's exact percentage, floored (33/66/100): purifiers round 67% up to the top level.
         e = _need(k, "entity")
         st = ha().state(e) or {}
         at = st.get("attributes") or {}
-        lo, pct = max(1, int(at.get("percentage_step") or 1)), at.get("percentage")
-        if sign > 0:
-            ha().call("fan", "increase_speed", {"entity_id": e, "percentage_step": min(amount, 100)})
-        elif st.get("state") != "on" or (pct is not None and pct <= lo):
-            pass
-        elif pct is None or pct - amount < lo:
-            ha().call("fan", "set_percentage", {"entity_id": e, "percentage": lo})
+        n = max(1, round(100 / float(at.get("percentage_step") or 1)))  # number of levels
+        on = st.get("state") == "on"
+        cur = round((at.get("percentage") or 0) * n / 100) if on else 0
+        new = min(n, max(1, cur + sign * max(1, round(amount * n / 100))))
+        if on or sign > 0:
+            if new != cur:
+                ha().call("fan", "set_percentage", {"entity_id": e, "percentage": new * 100 // n})
+            notify(f"{_name(st, e)}: level {new}/{n}")
         else:
-            ha().call("fan", "decrease_speed", {"entity_id": e, "percentage_step": min(amount, 100)})
-        st = ha().state(e) or {}
-        pct = (st.get("attributes") or {}).get("percentage")
-        notify(f"{_name(st, e)}: {'off' if st.get('state') == 'off' else f'{pct}%'}")
+            notify(f"{_name(st, e)}: off")
     elif t == "ha_climate_temp":
         e = _need(k, "entity")
         st = ha().state(e) or {}
