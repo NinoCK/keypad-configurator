@@ -12,11 +12,13 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 
-from . import actions, config
+from . import actions, config, lighting
 
 HOLD_S = 0.5      # key held this long = hold action
 DOUBLE_S = 0.3    # second knob press within this = previous profile
 FAST_S, VFAST_S = 0.12, 0.06  # knob tick gaps that count as fast / very fast
+POLL_S = 2.0      # how often the live light re-reads its Home Assistant entity
+FPS = 20
 
 
 class Engine:
@@ -38,6 +40,10 @@ class Engine:
         self.entities: list[str] = []
         self._pool = ThreadPoolExecutor(4, thread_name_prefix="action")
         self._knob_units, self._knob_wake = 0, threading.Event()
+        self.live: tuple | None = None  # (profile id, entity, HA state) for the live light
+        self.live_error = ""
+        self._live_wake = threading.Event()
+        self.dark = False
 
     # ------------------------------------------------------------ config access
 
@@ -55,7 +61,7 @@ class Engine:
     # ------------------------------------------------------------ threads
 
     def start(self) -> None:
-        for target in (self._loop, self._knob_worker, self._auto_switch):
+        for target in (self._loop, self._knob_worker, self._auto_switch, self._live_poll, self._render):
             threading.Thread(target=target, daemon=True, name=target.__name__).start()
         self.apply_light()
 
@@ -94,6 +100,8 @@ class Engine:
         (self.down.add if down else self.down.discard)(index)
         if self.paused:
             return
+        if index < 6 and self.settings.get("flip"):
+            index = 5 - index  # keypad turned 180 degrees: profiles stay in the order the user sees
         if index < 6:
             self._key(index, down, now)
         elif index == 6:
@@ -181,6 +189,7 @@ class Engine:
             actions.run(action, self.ha, self.activate, self.notify)
         except Exception as e:
             self._fail(e)
+        self.refresh_live()
 
     def _knob(self, units: int) -> None:
         with self.lock:
@@ -199,6 +208,7 @@ class Engine:
                 actions.knob(knob, units, self.ha, self.notify)
             except Exception as e:
                 self._fail(e)
+            self.refresh_live()
 
     def _fail(self, e: Exception) -> None:
         logging.warning("action failed: %s", e)
@@ -230,23 +240,72 @@ class Engine:
             self.save()
             p = self.profile()
         self.apply_light()
+        self.refresh_live()
         self._osd(p["name"], p["color"])
         self.on_change()
 
     def apply_light(self) -> None:
         if not self.device:
             return
-        if self.locked and self.settings.get("sleepLocked"):
+        b = int(self.settings.get("ledBrightness", 1))
+        self.dark = b <= 0 or (self.locked and self.settings.get("sleepLocked"))
+        if self.dark:
             self.device.off()
-            return
-        p = self.profile()
-        self.device.light(p["color"], p.get("led", "steady"), int(self.settings.get("ledBrightness", 1)))
+        else:
+            self.device.custom(b)
 
     def set_locked(self, locked: bool) -> None:
         self.locked = locked
-        if self.device and self.settings.get("sleepLocked"):
-            self.device.forget_light()
-            self.apply_light()
+        self.apply_light()
+
+    # ------------------------------------------------------------ live light
+
+    def live_entity(self, p: dict | None = None) -> str:
+        live = (p or self.profile()).get("live") or {}
+        return live.get("entity", "") if live.get("type", "none") != "none" else ""
+
+    def look(self) -> dict:
+        p = self.profile()
+        live = self.live
+        state = live[2] if live and live[:2] == (p["id"], self.live_entity(p)) else None
+        return lighting.look(p, state)
+
+    def refresh_live(self) -> None:
+        """Re-read the live entity now (after an action), and again shortly after for slow devices."""
+        self._live_wake.set()
+        t = threading.Timer(1.2, self._live_wake.set)
+        t.daemon = True
+        t.start()
+
+    def _live_poll(self) -> None:
+        while True:
+            self._live_wake.wait(POLL_S)
+            self._live_wake.clear()
+            p = self.profile()
+            ent = self.live_entity(p)
+            if not ent:
+                self.live, self.live_error = None, ""
+                continue
+            try:
+                self.live, self.live_error = (p["id"], ent, self.ha().state(ent)), ""
+            except Exception as e:
+                self.live_error = str(e)  # keep the last known state; the look falls back if there is none
+
+    def _render(self) -> None:
+        cur, start = None, time.monotonic()
+        while True:
+            time.sleep(1 / FPS)
+            if self.dark:
+                cur = None
+                continue
+            lk = self.look()
+            target = (*lighting.rgb(lk["color"]), lk["level"])
+            # Glide towards the target so brightness and colour changes fade instead of jumping.
+            cur = target if cur is None else tuple(c + (t - c) * 0.18 for c, t in zip(cur, target))
+            colors = lighting.frame(cur[:3], cur[3], lk["fx"], time.monotonic() - start)
+            knob = tuple(round(c * cur[3]) for c in cur[:3])
+            self.device.custom(int(self.settings.get("ledBrightness", 1)))  # no-op unless reconnected
+            self.device.frame(colors, knob, bool(self.settings.get("flip")))
 
     def _auto_switch(self) -> None:
         from . import win
@@ -286,6 +345,7 @@ class Engine:
         if startup_changed:
             set_startup(new["settings"]["startup"])
         self.apply_light()
+        self.refresh_live()
         self.on_change()
 
 

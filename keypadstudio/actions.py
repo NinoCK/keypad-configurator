@@ -45,13 +45,24 @@ class HomeAssistant:
     def ping(self) -> str:
         return (self._req("/api/") or {}).get("message", "ok")
 
-    def entity_ids(self) -> list[str]:
-        return sorted(s["entity_id"] for s in self._req("/api/states", timeout=10) or [])
+    def entities(self) -> list[dict]:
+        """Every entity with what the settings window needs to offer it: name, modes, sensor class."""
+        out = []
+        for s in self._req("/api/states", timeout=10) or []:
+            at = s.get("attributes") or {}
+            out.append({"id": s["entity_id"], "name": at.get("friendly_name", ""),
+                        "opts": at.get("hvac_modes" if s["entity_id"].startswith("climate.") else "preset_modes") or [],
+                        "dc": at.get("device_class", ""), "step": at.get("percentage_step")})
+        return sorted(out, key=lambda e: e["id"])
 
 
 def _rgb(hex_color: str) -> list[int]:
     h = (hex_color or "#ffffff").lstrip("#")
     return [int(h[i:i + 2], 16) for i in (0, 2, 4)]
+
+
+def _name(state: dict, fallback: str) -> str:
+    return (state.get("attributes") or {}).get("friendly_name") or fallback
 
 
 def _need(a: dict, k: str) -> str:
@@ -121,6 +132,10 @@ def run(a: dict, ha, switch_profile, notify=_no_notify) -> None:
             ha().call("automation", "trigger", e)
         elif t == "ha_script":
             ha().call("script", "turn_on", e)
+        elif t == "ha_fan_preset":
+            ha().call("fan", "set_preset_mode", {**e, "preset_mode": _need(a, "preset")})
+        elif t == "ha_climate_mode":
+            ha().call("climate", "set_hvac_mode", {**e, "hvac_mode": _need(a, "mode")})
         else:
             raise ActionError(f"unknown action {t}")
     elif t == "launch":
@@ -186,6 +201,19 @@ def knob(k: dict, units: int, ha, notify=_no_notify) -> None:
         e = _need(k, "entity")
         cur = ((ha().state(e) or {}).get("attributes", {}).get("volume_level")) or 0
         ha().call("media_player", "volume_set", {"entity_id": e, "volume_level": round(min(1, max(0, cur + sign * amount / 100)), 2)})
+    elif t == "ha_fan_speed":
+        e = _need(k, "entity")
+        ha().call("fan", "increase_speed" if sign > 0 else "decrease_speed", {"entity_id": e, "percentage_step": min(amount, 100)})
+        st = ha().state(e) or {}
+        pct = (st.get("attributes") or {}).get("percentage")
+        notify(f"{_name(st, e)}: {'off' if st.get('state') == 'off' else f'{pct}%'}")
+    elif t == "ha_climate_temp":
+        e = _need(k, "entity")
+        at = (ha().state(e) or {}).get("attributes", {})
+        lo, hi = at.get("min_temp", 16), at.get("max_temp", 30)
+        new = min(hi, max(lo, (at.get("temperature") or 24) + sign * amount * 0.5))  # one step = 0.5 degree
+        ha().call("climate", "set_temperature", {"entity_id": e, "temperature": new})
+        notify(f"{at.get('friendly_name') or e}: {new:g}°")
     elif t == "scroll":
         win.wheel(sign * 40 * amount)  # 120 per notch = 3 lines, so 40 per line
     elif t == "zoom":

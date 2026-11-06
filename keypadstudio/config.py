@@ -45,7 +45,7 @@ DEFAULT = {
     ],
     "ha": {"url": "http://homeassistant.local:8123"},
     "settings": {"startup": False, "osd": True, "dblPrev": False, "longPress": "picker",
-                 "autoSwitch": False, "sleepLocked": True, "ledBrightness": 1},
+                 "autoSwitch": False, "sleepLocked": True, "ledBrightness": 1, "flip": False},
 }
 
 
@@ -74,6 +74,12 @@ def validate(cfg: object) -> dict:
             for slot in ("tap", "hold"):
                 need(isinstance(k.get(slot), dict) and isinstance(k[slot].get("type"), str), "every key needs a press and hold action")
     out = copy.deepcopy(cfg)
+    from .lighting import EFFECTS, OLD_EFFECTS
+    for p in out["profiles"]:
+        led = OLD_EFFECTS.get(p.get("led"), p.get("led"))
+        p["led"] = led if led in EFFECTS else "steady"
+        if not isinstance(p.get("live"), dict) or p["live"].get("type") not in ("none", "light", "climate", "air"):
+            p["live"] = {"type": "none"}
     out["ha"] = {"url": str((cfg.get("ha") or {}).get("url", ""))}  # the token never goes in this file
     out["settings"] = {**DEFAULT["settings"], **(cfg.get("settings") or {})}
     if out.get("active") not in ids:

@@ -6,150 +6,188 @@
 <title>Keypad Studio</title>
 <style>
 :root{
-  --bg:#f3f4f6;--panel:#ffffff;--panel2:#eceef2;--text:#15171c;--muted:#5b6270;--line:#dcdfe5;
-  --accent:#3563e9;--accent-text:#fff;--danger:#c93c3c;--ok:#1f8a4c;--idea:#8a5cf6;
-  --body:#1d2025;--cap:#3a3f48;--cap-text:#eceef2;--cap-edge:#4a505a;
+  --bg:#f4f5f7;--panel:#ffffff;--panel2:#eef0f3;--text:#14161b;--muted:#5e6573;--line:#dfe2e8;
+  --accent:#3563e9;--accent-soft:#e6ecfd;--accent-text:#fff;--danger:#c93c3c;--ok:#1f8a4c;--warn:#b7791f;
+  --body:#1b1e23;--cap:#353a43;--cap-text:#eceef2;--cap-edge:#464c57;--shadow:0 1px 2px rgba(16,24,40,.06);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
-    --bg:#111317;--panel:#191c21;--panel2:#22262d;--text:#e7e9ee;--muted:#9aa1ae;--line:#2b3038;
-    --accent:#6d8dff;--accent-text:#0d1020;--danger:#ff6b6b;--ok:#4cc38a;--idea:#b39bff;
-    --body:#0b0d10;--cap:#2c3038;--cap-text:#e7e9ee;--cap-edge:#3b414b;
+    --bg:#101215;--panel:#171a1f;--panel2:#20242b;--text:#e7e9ee;--muted:#9aa1ae;--line:#292e36;
+    --accent:#6d8dff;--accent-soft:#1d2540;--accent-text:#0d1020;--danger:#ff6b6b;--ok:#4cc38a;--warn:#e0a84a;
+    --body:#0a0c0f;--cap:#2a2e36;--cap-text:#e7e9ee;--cap-edge:#383e48;--shadow:none;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#111317;--panel:#191c21;--panel2:#22262d;--text:#e7e9ee;--muted:#9aa1ae;--line:#2b3038;
-  --accent:#6d8dff;--accent-text:#0d1020;--danger:#ff6b6b;--ok:#4cc38a;--idea:#b39bff;
-  --body:#0b0d10;--cap:#2c3038;--cap-text:#e7e9ee;--cap-edge:#3b414b;
+  --bg:#101215;--panel:#171a1f;--panel2:#20242b;--text:#e7e9ee;--muted:#9aa1ae;--line:#292e36;
+  --accent:#6d8dff;--accent-soft:#1d2540;--accent-text:#0d1020;--danger:#ff6b6b;--ok:#4cc38a;--warn:#e0a84a;
+  --body:#0a0c0f;--cap:#2a2e36;--cap-text:#e7e9ee;--cap-edge:#383e48;--shadow:none;
 }
 *{box-sizing:border-box}
 html,body{margin:0;height:100%}
 body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
 button,input,select,textarea{font:inherit;color:inherit}
-.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
-.side{background:var(--panel);border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:6px}
-.brand{font-weight:650;font-size:15px;padding:2px 8px 10px}
-.dev{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);padding:0 8px 12px;border-bottom:1px solid var(--line);margin-bottom:6px}
+a{color:var(--accent)}
+.app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
+
+/* sidebar */
+.side{background:var(--panel);border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;overflow:auto}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;font-size:15px;padding:2px 8px 12px}
+.brand i{width:26px;height:26px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#9b6bff);display:grid;place-items:center;color:#fff;font-style:normal;font-size:13px}
+.status{display:grid;gap:6px;padding:10px;margin:0 2px 8px;border:1px solid var(--line);border-radius:10px;font-size:12px;color:var(--muted)}
+.status div{display:flex;align-items:center;gap:8px}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
-.nav{display:flex;flex-direction:column;gap:2px}
-.nav button,.plist button.pick{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px}
-.nav button:hover,.plist button.pick:hover{background:var(--panel2)}
-.nav button[aria-current="true"],.plist li.on button.pick{background:var(--panel2);font-weight:600}
-.nav button:focus-visible,.plist button:focus-visible{outline:2px solid var(--accent)}
-.sec{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:14px 10px 4px}
-.sec small{display:block;text-transform:none;letter-spacing:0;font-size:11px}
-.plist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.dot.off{background:var(--danger)}.dot.idle{background:var(--muted)}
+.sec{display:flex;align-items:center;justify-content:space-between;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:12px 10px 4px}
+.nav,.plist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.nav button,.plist .pick{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px;width:100%}
+.nav button:hover,.plist .pick:hover{background:var(--panel2)}
+.nav button[aria-current="true"],.plist li.on .pick{background:var(--accent-soft);font-weight:600}
+.nav svg{width:16px;height:16px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;opacity:.8}
+.nav button:focus-visible,.plist button:focus-visible,.icon:focus-visible{outline:2px solid var(--accent)}
 .plist li{display:flex;align-items:center}
-.plist button.pick{flex:1;min-width:0}
+.plist .pick{flex:1;min-width:0}
 .plist .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plist .kind{font-size:11px;color:var(--muted);margin-left:auto;white-space:nowrap}
+.plist .mv{display:none}
+.plist li:hover .mv,.plist li:focus-within .mv{display:flex}
 .swatch{width:12px;height:12px;border-radius:4px;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
-.live{font-size:10px;color:var(--ok);margin-left:auto}
-main{padding:22px 26px 40px;min-width:0}
-h1{font-size:20px;margin:0 0 4px}
-h2{font-size:15px;margin:0 0 10px}
-.sub{color:var(--muted);margin:0 0 18px;max-width:70ch}
-.row{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
-label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+.saved{font-size:12px;color:var(--muted);padding:10px;margin-top:auto}
+.icon{all:unset;cursor:pointer;color:var(--muted);padding:3px 5px;border-radius:6px;font-size:11px;line-height:1}
+.icon:hover{background:var(--panel2);color:var(--text)}
+.icon[disabled]{opacity:.3;pointer-events:none}
+
+/* main */
+main{padding:24px 28px 48px;min-width:0;max-width:1180px}
+h1{font-size:21px;margin:0}
+h2{font-size:15px;margin:0 0 4px}
+h3{font-size:13px;margin:0 0 8px}
+.sub{color:var(--muted);margin:4px 0 20px;max-width:72ch}
+.desc{color:var(--muted);font-size:13px;margin:0 0 14px}
+.row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
+.fields{display:grid;gap:14px}
+label.f{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);min-width:0}
 label.f>span{display:flex;gap:6px;align-items:center}
-.f input[type=text],.f input[type=url],.f input[type=password],.f input:not([type]),.f select,.f textarea{
+.f input:not([type=color]):not([type=range]):not([type=checkbox]),.f select,.f textarea,.ctl{
   background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;color:var(--text);min-width:0;width:100%}
 .f textarea{min-height:64px;resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:12px}
-.f input[type=color]{width:46px;height:34px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
-.f input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=color]{width:44px;height:34px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer;flex:none}
+input[type=range]{width:100%;accent-color:var(--accent)}
 input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
-.check{display:flex;gap:10px;align-items:flex-start;padding:8px 0;cursor:pointer}
-.check input{margin-top:3px;accent-color:var(--accent)}
+.ename{font-size:11px;color:var(--muted);min-height:15px}
+.check{display:flex;gap:12px;align-items:flex-start;padding:10px 0;cursor:pointer;border-top:1px solid var(--line)}
+.check:first-child{border-top:0;padding-top:0}
+.check input{margin-top:3px;accent-color:var(--accent);flex:none}
 .check b{font-weight:550;display:block}
 .check small{color:var(--muted)}
-.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;white-space:nowrap}
 .btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.5;cursor:default}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
 .btn.danger{color:var(--danger)}
-.btn.sm{padding:3px 8px;font-size:12px}
-.icon{all:unset;cursor:pointer;color:var(--muted);padding:4px 6px;border-radius:6px;font-size:12px}
-.icon:hover{background:var(--panel2);color:var(--text)}
-.idea{display:inline-block;font-size:10px;font-weight:600;color:var(--idea);border:1px solid currentColor;border-radius:999px;padding:0 6px;line-height:16px;text-transform:none;letter-spacing:0}
-.grid2{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:20px;align-items:start}
-.fields{display:grid;gap:12px}
-.head{display:grid;grid-template-columns:minmax(140px,1.4fr) auto minmax(120px,1fr) minmax(160px,1.6fr) auto;gap:12px;align-items:end}
+.btn.sm{padding:3px 9px;font-size:12px}
+.note{font-size:12px;color:var(--muted);background:var(--panel2);border-radius:8px;padding:8px 10px;margin:0}
+.banner{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--danger);border-radius:8px;padding:10px 12px;margin-bottom:16px}
+.banner.warn{border-left-color:var(--warn)}
+.grid2{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:24px;align-items:start}
+.sticky{position:sticky;top:20px}
+kbd{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+td,th{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+th{color:var(--muted);font-weight:500;font-size:12px}
+td input[type=number]{width:80px}
 
-/* keypad */
-.pad{display:flex;flex-direction:column;align-items:center;gap:10px}
+/* profile header */
+.phead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
+.phead .title{all:unset;font-size:21px;font-weight:650;min-width:120px;flex:0 1 340px;border-radius:6px;padding:2px 6px;margin-left:-6px}
+.phead .title:hover{background:var(--panel2)}
+.phead .title:focus{background:var(--panel);outline:2px solid var(--accent)}
+.phead .spacer{flex:1}
+.chip{display:inline-flex;align-items:center;gap:7px;font-size:12px;padding:4px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
+.chip.on{color:var(--text)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:14px 0 20px}
+.tabs button{all:unset;cursor:pointer;padding:8px 14px;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-1px}
+.tabs button:hover{color:var(--text)}
+.tabs button[aria-selected="true"]{border-color:var(--accent);color:var(--text);font-weight:600}
+.tabs button:focus-visible{outline:2px solid var(--accent)}
+.subtabs{display:inline-flex;background:var(--panel2);border-radius:8px;padding:3px;gap:2px}
+.subtabs button{all:unset;cursor:pointer;padding:4px 14px;border-radius:6px;font-size:13px;color:var(--muted)}
+.subtabs button[aria-selected="true"]{background:var(--panel);color:var(--text);font-weight:600;box-shadow:var(--shadow)}
+
+/* option tiles */
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
+.tile{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px;background:var(--panel)}
+.tile:hover{border-color:var(--muted)}
+.tile[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
+.tile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tile b{font-weight:600}
+.tile small{color:var(--muted);font-size:12px}
+
+/* keypad drawing */
+.pad{display:flex;flex-direction:column;align-items:center;gap:12px}
 .pad-body{background:var(--body);border-radius:22px;padding:20px;display:grid;
-  grid-template-columns:repeat(3,76px) 100px;grid-template-rows:76px 76px;gap:12px;align-items:center;justify-items:center}
-.key{all:unset;box-sizing:border-box;cursor:pointer;width:100%;height:100%;border-radius:12px;background:var(--cap);color:var(--cap-text);
-  display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:6px;gap:2px;
-  box-shadow:inset 0 -3px 0 var(--cap-edge),0 0 22px -6px var(--glow);transition:box-shadow .2s}
+  grid-template-columns:repeat(3,78px) 104px;grid-template-rows:78px 78px;gap:12px;align-items:center;justify-items:center;
+  box-shadow:0 10px 30px -12px rgba(0,0,0,.5)}
+.pad.flip .pad-body{grid-template-columns:104px repeat(3,78px)}
+.key{all:unset;box-sizing:border-box;cursor:pointer;position:relative;width:100%;height:100%;border-radius:12px;background:var(--cap);color:var(--cap-text);
+  display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:6px 6px 10px;gap:2px;
+  box-shadow:inset 0 -3px 0 var(--cap-edge),0 0 22px -2px var(--led,transparent)}
+.key::after{content:"";position:absolute;left:12px;right:12px;bottom:5px;height:3px;border-radius:2px;background:var(--led,transparent)}
 .key b{font-size:12px;font-weight:600;line-height:1.15;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .key small{font-size:9px;opacity:.6}
 .key[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:3px}
 .key:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
-.knob-wrap{grid-column:4;grid-row:1/3;display:flex;flex-direction:column;align-items:center;gap:8px}
+.knob-wrap{grid-row:1/3;display:flex;flex-direction:column;align-items:center;gap:8px}
 .knob{all:unset;cursor:pointer;width:84px;height:84px;border-radius:50%;position:relative;
-  background:radial-gradient(circle at 40% 35%,#5b616c,#2a2e35 70%);box-shadow:0 4px 10px rgba(0,0,0,.5),0 0 0 3px #15171b,0 0 24px -6px var(--glow)}
-.knob::after{content:"";position:absolute;left:50%;top:8px;width:3px;height:18px;margin-left:-1.5px;border-radius:2px;background:#e9ecf1;
-  transform-origin:50% 34px;transform:rotate(var(--rot,0deg))}
+  background:radial-gradient(circle at 40% 35%,#5b616c,#2a2e35 70%);box-shadow:0 4px 10px rgba(0,0,0,.5),0 0 0 3px #15171b,0 0 26px -2px var(--led,transparent)}
+.knob::after{content:"";position:absolute;left:50%;top:8px;width:3px;height:18px;margin-left:-1.5px;border-radius:2px;background:#e9ecf1}
 .knob[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:4px}
 .knob:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
-.turn{display:flex;gap:4px}
-.turn button{all:unset;cursor:pointer;color:#c9ced6;font-size:11px;padding:2px 7px;border-radius:6px;background:#2a2e35}
-.turn button:hover{background:#3a3f48}
-.readout{font-size:12px;color:var(--muted);text-align:center;min-height:18px}
-.meter{height:6px;width:220px;max-width:100%;background:var(--panel2);border-radius:3px;overflow:hidden}
-.meter i{display:block;height:100%;background:var(--accent);transition:width .15s}
-.hint{font-size:12px;color:var(--muted);text-align:center;max-width:380px}
+.knob-cap{font-size:10px;color:#9aa1ae;text-align:center;max-width:100px;line-height:1.2}
+.hint{font-size:12px;color:var(--muted);text-align:center;max-width:380px;margin:0}
+.mini{display:inline-grid;grid-template-columns:repeat(3,12px) 16px;grid-template-rows:12px 12px;gap:3px;background:var(--body);padding:6px;border-radius:7px;align-self:flex-start;margin-bottom:6px}
+.mini.flip{grid-template-columns:16px repeat(3,12px)}
+.mini i{width:12px;height:12px;border-radius:3px;background:var(--cap)}
+.mini b{grid-row:1/3;grid-column:4;width:14px;height:14px;border-radius:50%;background:#5b616c;align-self:center}
+.mini.flip b{grid-column:1}
 
-.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:12px}
-.tabs button{all:unset;cursor:pointer;padding:6px 12px;border-bottom:2px solid transparent;color:var(--muted)}
-.tabs button[aria-selected="true"]{border-color:var(--accent);color:var(--text);font-weight:600}
-.note{font-size:12px;color:var(--muted);background:var(--panel2);border-radius:8px;padding:8px 10px}
-table{border-collapse:collapse;width:100%;font-size:13px}
-td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
-th{color:var(--muted);font-weight:500;font-size:12px}
-kbd{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:0 5px}
-ol.flow{margin:0;padding-left:20px;display:grid;gap:6px}
-#osd{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%) scale(.96);background:rgba(15,17,21,.92);color:#fff;
-  padding:16px 26px;border-radius:14px;font-size:18px;font-weight:600;display:flex;gap:12px;align-items:center;opacity:0;pointer-events:none;transition:.18s}
-#osd.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
-#toast{position:fixed;right:18px;bottom:18px;max-width:min(420px,calc(100vw - 36px));background:var(--text);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:13px;opacity:0;transform:translateY(8px);transition:.18s;pointer-events:none}
+/* misc */
+#toast{position:fixed;right:18px;bottom:18px;max-width:min(420px,calc(100vw - 36px));background:var(--text);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:13px;opacity:0;transform:translateY(8px);transition:.18s;pointer-events:none;z-index:9}
 #toast.show{opacity:1;transform:none}
-dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);padding:18px;width:min(720px,calc(100vw - 32px))}
-dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog{border:1px solid var(--line);border-radius:14px;background:var(--panel);color:var(--text);padding:22px;width:min(760px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.5)}
 dialog pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;max-height:60vh;overflow:auto;font-size:12px}
-.topbar{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap}
+.dlg-foot{display:flex;justify-content:flex-end;gap:8px;margin-top:18px}
+ol.flow{margin:0;padding-left:20px;display:grid;gap:8px}
+.list{display:grid;gap:4px;font-size:13px}
+.list div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding:5px 0}
+.list span{color:var(--muted);font-family:ui-monospace,Consolas,monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis}
 
-@media (max-width:900px){
-  .grid2{grid-template-columns:1fr}
-  .head{grid-template-columns:1fr 1fr}
-}
-@media (max-width:700px){
+@media (max-width:960px){ .grid2{grid-template-columns:1fr} .sticky{position:static} }
+@media (max-width:720px){
   .app{grid-template-columns:1fr}
-  .side{border-right:0;border-bottom:1px solid var(--line)}
-  .nav{flex-direction:row;flex-wrap:wrap}
+  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
   main{padding:16px}
-  .pad-body{grid-template-columns:repeat(3,minmax(0,64px)) 84px;grid-template-rows:64px 64px;padding:14px;gap:8px}
-  .knob{width:68px;height:68px}
-  .knob::after{transform-origin:50% 26px;height:14px}
-  .head{grid-template-columns:1fr}
+  .pad-body{grid-template-columns:repeat(3,minmax(0,62px)) 84px;grid-template-rows:62px 62px;padding:14px;gap:8px}
+  .pad.flip .pad-body{grid-template-columns:84px repeat(3,minmax(0,62px))}
+  .knob{width:66px;height:66px}
 }
-</style>
-<style>
-.banner{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--danger);border-radius:8px;padding:10px 12px;margin-bottom:16px}
-.dot.off{background:var(--danger)}
-.saved{font-size:12px;color:var(--muted)}
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="side">
-    <div class="brand">Keypad Studio</div>
-    <div class="dev"><span class="dot" id="devDot"></span><span id="devText">Connecting…</span></div>
-    <nav class="nav" id="nav"></nav>
-    <div class="sec">Profiles<small>Knob press cycles in this order</small></div>
+    <div class="brand"><i>K</i>Keypad Studio</div>
+    <div class="status">
+      <div><span class="dot" id="devDot"></span><span id="devText">Connecting…</span></div>
+      <div><span class="dot idle" id="haDot"></span><span id="haText">Home Assistant</span></div>
+    </div>
+    <div class="sec">Profiles <button class="icon" data-act="newProfile" aria-label="New profile" title="New profile" style="font-size:16px">＋</button></div>
     <ul class="plist" id="plist"></ul>
-    <button class="btn sm" data-act="addProfile" style="margin:6px 10px">+ New profile</button>
-    <div class="saved" id="saved" style="padding:10px"></div>
+    <div class="sec">App</div>
+    <nav class="nav" id="nav"></nav>
+    <div class="saved" id="saved"></div>
   </aside>
   <main id="main"></main>
 </div>
@@ -169,83 +207,131 @@ async function api(path, method = 'GET', body) {
   return data;
 }
 
-/* ---------- action catalogue ---------- */
+/* ---------- catalogues ---------- */
 const ent = (domain = 'any', l = 'Entity') => ({k:'entity', l, t:'entity', domain});
 const ACTIONS = {
-  none:          {g:'General',        l:'Do nothing', f:[]},
-  ha_light:      {g:'Home Assistant', l:'Set light colour & brightness', f:[ent('light','Light'), {k:'color',l:'Colour',t:'color',d:'#ffb46b'}, {k:'brightness',l:'Brightness',t:'range',min:1,max:100,d:80,unit:'%'}]},
-  ha_white:      {g:'Home Assistant', l:'Set light to white', f:[ent('light','Light'), {k:'kelvin',l:'Warmth (2700 = warm, 6500 = cool)',t:'range',min:2000,max:6500,d:4000,unit:' K'}, {k:'brightness',l:'Brightness',t:'range',min:1,max:100,d:80,unit:'%'}]},
-  ha_toggle:     {g:'Home Assistant', l:'Toggle on/off', f:[ent()]},
-  ha_scene:      {g:'Home Assistant', l:'Activate scene', f:[ent('scene','Scene')]},
-  ha_automation: {g:'Home Assistant', l:'Trigger automation', f:[ent('automation','Automation')]},
-  ha_script:     {g:'Home Assistant', l:'Run script', f:[ent('script','Script')]},
-  ha_service:    {g:'Home Assistant', l:'Call any service (advanced)', f:[{k:'service',l:'Service',t:'text',ph:'light.turn_on'}, ent(), {k:'data',l:'Extra data (JSON)',t:'textarea',ph:'{"transition": 2}'}]},
-  launch:        {g:'PC', l:'Launch application', f:[{k:'path',l:'Program, shortcut or file',t:'file',ph:'C:\\Program Files\\App\\app.exe'}, {k:'args',l:'Arguments (optional)',t:'text'}]},
-  url:           {g:'PC', l:'Open website', f:[{k:'url',l:'Address',t:'text',ph:'https://'}]},
-  hotkey:        {g:'PC', l:'Send keyboard shortcut', f:[{k:'keys',l:'Shortcut (click, then press keys)',t:'capture'}]},
-  text:          {g:'PC', l:'Type text', f:[{k:'text',l:'Text',t:'textarea'}]},
-  media:         {g:'PC', l:'Media control', f:[{k:'cmd',l:'Command',t:'select',d:'play_pause',opts:{play_pause:'Play / pause',next:'Next track',prev:'Previous track',mute:'Mute speakers',mic:'Mute / unmute microphone'}}]},
-  audio_out:     {g:'PC', l:'Switch audio output', f:[{k:'device',l:'Cycle between these outputs (one per line, part of the name is enough)',t:'textarea',ph:'Realtek\nLG ULTRAWIDE'}], note:'outputs'},
-  command:       {g:'PC', l:'Run PowerShell command', f:[{k:'cmd',l:'Command',t:'textarea',ph:'Start-Process notepad'}, {k:'hidden',l:'Run without a window',t:'bool',d:true}]},
-  profile:       {g:'Keypad', l:'Go to profile', f:[{k:'profile',l:'Profile',t:'profile'}]},
-  timer:         {g:'Keypad', l:'Focus timer (press again to cancel)', f:[{k:'minutes',l:'Minutes',t:'range',min:5,max:90,d:25,unit:' min'}]},
+  none:            {g:'General',        l:'Do nothing', f:[]},
+  ha_light:        {g:'Lights',         l:'Set light colour & brightness', f:[ent('light','Light'), {k:'color',l:'Colour',t:'color',d:'#ffb46b'}, {k:'brightness',l:'Brightness',t:'range',min:1,max:100,d:80,unit:'%'}]},
+  ha_white:        {g:'Lights',         l:'Set light to white', f:[ent('light','Light'), {k:'kelvin',l:'Warmth (2700 = warm, 6500 = cool)',t:'range',min:2000,max:6500,d:4000,unit:' K'}, {k:'brightness',l:'Brightness',t:'range',min:1,max:100,d:80,unit:'%'}]},
+  ha_climate_mode: {g:'Climate & air',  l:'Set air conditioner mode', f:[ent('climate','Air conditioner'), {k:'mode',l:'Mode',t:'opt'}]},
+  ha_fan_preset:   {g:'Climate & air',  l:'Set purifier / fan mode', f:[ent('fan','Purifier or fan'), {k:'preset',l:'Mode',t:'opt'}]},
+  ha_toggle:       {g:'Home Assistant', l:'Turn on / off', f:[ent()]},
+  ha_scene:        {g:'Home Assistant', l:'Activate scene', f:[ent('scene','Scene')]},
+  ha_automation:   {g:'Home Assistant', l:'Trigger automation', f:[ent('automation','Automation')]},
+  ha_script:       {g:'Home Assistant', l:'Run script', f:[ent('script','Script')]},
+  ha_service:      {g:'Home Assistant', l:'Call any service (advanced)', f:[{k:'service',l:'Service',t:'text',ph:'light.turn_on'}, ent(), {k:'data',l:'Extra data (JSON)',t:'textarea',ph:'{"transition": 2}'}]},
+  launch:          {g:'PC', l:'Launch application', f:[{k:'path',l:'Program, shortcut or file',t:'file',ph:'C:\\Program Files\\App\\app.exe'}, {k:'args',l:'Arguments (optional)',t:'text'}]},
+  url:             {g:'PC', l:'Open website', f:[{k:'url',l:'Address',t:'text',ph:'https://'}]},
+  hotkey:          {g:'PC', l:'Send keyboard shortcut', f:[{k:'keys',l:'Shortcut (click, then press keys)',t:'capture'}]},
+  text:            {g:'PC', l:'Type text', f:[{k:'text',l:'Text',t:'textarea'}]},
+  media:           {g:'PC', l:'Media control', f:[{k:'cmd',l:'Command',t:'select',d:'play_pause',opts:{play_pause:'Play / pause',next:'Next track',prev:'Previous track',mute:'Mute speakers',mic:'Mute / unmute microphone'}}]},
+  audio_out:       {g:'PC', l:'Switch audio output', f:[{k:'device',l:'Cycle between these outputs (one per line, part of the name is enough)',t:'textarea',ph:'Realtek\nLG ULTRAWIDE'}], note:'outputs'},
+  command:         {g:'PC', l:'Run PowerShell command', f:[{k:'cmd',l:'Command',t:'textarea',ph:'Start-Process notepad'}, {k:'hidden',l:'Run without a window',t:'bool',d:true}]},
+  profile:         {g:'Keypad', l:'Go to profile', f:[{k:'profile',l:'Profile',t:'profile'}]},
+  timer:           {g:'Keypad', l:'Focus timer (press again to cancel)', f:[{k:'minutes',l:'Minutes',t:'range',min:5,max:90,d:25,unit:' min'}]},
 };
 const KNOB = {
-  volume:          {l:'System volume', unit:'%', max:20},
-  app_volume:      {l:'One app’s volume', unit:'%', max:20, f:[{k:'app',l:'Program (as in Task Manager)',t:'text',ph:'Spotify.exe'}], note:'apps'},
-  ha_brightness:   {l:'Light brightness', unit:'%', max:25, f:[ent('light','Light')]},
-  ha_colortemp:    {l:'Light warmth (colour temperature)', unit:'%', max:25, f:[ent('light','Light')]},
-  ha_media_volume: {l:'Speaker volume (Home Assistant)', unit:'%', max:20, f:[ent('media_player','Speaker')]},
-  scroll:          {l:'Mouse scroll', unit:' lines', max:10},
-  zoom:            {l:'Zoom (Ctrl + scroll)', unit:' steps', max:5},
-  keys:            {l:'Custom shortcuts', unit:' presses', max:5, f:[{k:'cw',l:'Turn right sends',t:'capture'},{k:'ccw',l:'Turn left sends',t:'capture'}]},
+  volume:          {l:'System volume', s:'Volume', unit:'%', max:20},
+  app_volume:      {l:'One app’s volume', s:'App volume', unit:'%', max:20, f:[{k:'app',l:'Program (as in Task Manager)',t:'text',ph:'Spotify.exe'}], note:'apps'},
+  ha_brightness:   {l:'Light brightness', s:'Brightness', unit:'%', max:25, f:[ent('light','Light')]},
+  ha_colortemp:    {l:'Light warmth (colour temperature)', s:'Warmth', unit:'%', max:25, f:[ent('light','Light')]},
+  ha_climate_temp: {l:'Air conditioner temperature', s:'Temperature', unit:' × 0.5°', max:4, f:[ent('climate','Air conditioner')]},
+  ha_fan_speed:    {l:'Purifier / fan speed', s:'Fan speed', unit:'%', max:50, f:[ent('fan','Purifier or fan')]},
+  ha_media_volume: {l:'Speaker volume (Home Assistant)', s:'Speaker', unit:'%', max:20, f:[ent('media_player','Speaker')]},
+  scroll:          {l:'Mouse scroll', s:'Scroll', unit:' lines', max:10},
+  zoom:            {l:'Zoom (Ctrl + scroll)', s:'Zoom', unit:' steps', max:5},
+  keys:            {l:'Custom shortcuts', s:'Shortcuts', unit:' presses', max:5, f:[{k:'cw',l:'Turn right sends',t:'capture'},{k:'ccw',l:'Turn left sends',t:'capture'}]},
 };
-const LED_MODES = {steady:'Steady', breath:'Breathing', press:'Light on press', tidal:'Wave', off:'Off'};
+const FX = {steady:'Steady', breathe:'Breathing', wave:'Wave', spin:'Spin', flicker:'Flicker', drops:'Drops', blink:'Blink', dim:'Dim', off:'Off'};
+const LIVE = {
+  none:    {l:'Fixed colour',    d:'Always the profile colour and effect.'},
+  light:   {l:'Follow a light',  d:'Keypad brightness (and colour) mirror a light.', domain:'light'},
+  climate: {l:'Air conditioner', d:'Colour and animation show the AC mode.', domain:'climate'},
+  air:     {l:'Air quality',     d:'Green to red from a PM2.5 sensor.', domain:'sensor'},
+};
+
+/* LED animation preview: same maths as lighting.levels() in Python. */
+function levels(fx, t) {
+  const six = v => Array(6).fill(v), R = [0, 1, 2, 5, 4, 3], c = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  switch (fx) {
+    case 'off': return six(0);
+    case 'dim': return six(.15);
+    case 'breathe': return six(.12 + .88 * (.5 - .5 * Math.cos(t * 2.1)));
+    case 'wave': return [0,1,2,3,4,5].map(p => .12 + .88 * (.5 + .5 * Math.sin(t * 3 - (p % 3) * 1.4)));
+    case 'spin': { const h = (t * 5) % 6, o = six(0); R.forEach((p, i) => o[p] = Math.max(.08, 1 - (((h - i) % 6) + 6) % 6 * .38)); return o; }
+    case 'flicker': return [0,1,2,3,4,5].map(p => c(.62 + .22 * Math.sin(t * 5.3 + p * 1.9) + .18 * Math.sin(t * 9.1 + p * .7), .25, 1));
+    case 'drops': return [0,1,2,3,4,5].map(p => .08 + .92 * (1 - ((t * (.45 + .11 * p) + p * .618) % 1)) ** 4);
+    case 'blink': return six(t % 1.2 < .6 ? 1 : .1);
+    default: return six(1);
+  }
+}
 
 /* ---------- state ---------- */
-let AUDIO = {outputs: [], apps: []};
-const audioNote = kind => !kind ? '' : `<p class="note">${kind === 'outputs' ? 'Your outputs' : 'Playing sound now'}: ${(AUDIO[kind] || []).map(esc).join(' · ') || (kind === 'apps' ? 'nothing; start the program, then reopen this' : 'none found')}</p>`;
-let S = null, ST = {}, view = 'profiles', sel = {kind:'key', i:0}, tab = 'tap', dirty = false;
+let S = null, ST = {}, LT = {climate:{}, air:[], modes:{}}, ENTS = {}, AUDIO = {outputs: [], apps: []};
+let view = 'profile', ptab = 'controls', sel = {kind:'key', i:0}, slot = 'tap', dirty = false, PREVIEW = null;
 const uid = () => Math.random().toString(36).slice(2, 8);
-const newKey = () => ({label:'', tap:{type:'none'}, hold:{type:'none'}});
+const clone = o => JSON.parse(JSON.stringify(o));
+const K = (label, tap) => ({label, tap, hold:{type:'none'}});
+const blankKey = () => K('', {type:'none'});
 const P = () => S.profiles.find(p => p.id === S.active) || S.profiles[0];
 
 let saveT;
 function save() {
   dirty = true; $('#saved').textContent = 'Saving…';
   clearTimeout(saveT);
-  saveT = setTimeout(async () => {
-    try { await api('/api/config', 'PUT', S); dirty = false; $('#saved').textContent = 'All changes saved'; }
-    catch (e) { $('#saved').textContent = 'Not saved: ' + e.message; }
-  }, 400);
+  saveT = setTimeout(flush, 400);
+}
+async function flush() {
+  clearTimeout(saveT);
+  try { await api('/api/config', 'PUT', S); dirty = false; $('#saved').textContent = 'All changes saved'; }
+  catch (e) { $('#saved').textContent = 'Not saved: ' + e.message; throw e; }
 }
 
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const getPath = (o, p) => p.split('.').reduce((a, k) => a?.[k], o);
-const setPath = (o, p, v) => { const ks = p.split('.'), last = ks.pop(); ks.reduce((a, k) => a[k], o)[last] = v; };
+const setPath = (o, p, v) => { const ks = p.split('.'), last = ks.pop(); ks.reduce((a, k) => a[k] ??= {}, o)[last] = v; };
+const hex2rgb = h => { h = (h || '#ffffff').replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) || 0); };
+const ename = id => ENTS[id]?.name || '';
+const domainOf = id => (id || '').split('.')[0];
 let toastT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3500); };
 async function busy(btn, fn) { btn.disabled = true; try { await fn(); } catch (e) { toast(e.message); } finally { btn.disabled = false; } }
+const audioNote = kind => !kind ? '' : `<p class="note">${kind === 'outputs' ? 'Your outputs' : 'Playing sound now'}: ${(AUDIO[kind] || []).map(esc).join(' · ') || (kind === 'apps' ? 'nothing; start the program, then reopen this' : 'none found')}</p>`;
+const ICON = {
+  ha:'<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
+  device:'<svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="3"/><path d="M6 10h2M10 10h2M6 14h2M10 14h2"/><circle cx="17" cy="12" r="2.5"/></svg>',
+  settings:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>',
+  help:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3M12 17h.01"/></svg>',
+};
 
 function setEntities(list) {
-  const by = {any: list};
-  for (const e of list) (by[e.split('.')[0]] ||= []).push(e);
-  $('#lists').innerHTML = ['any','light','scene','automation','script','media_player'].map(d =>
-    `<datalist id="ents-${d}">${(by[d] || []).map(e => `<option value="${esc(e)}">`).join('')}</datalist>`).join('');
+  ENTS = Object.fromEntries(list.map(e => typeof e === 'string' ? [e, {id:e, name:'', opts:[]}] : [e.id, e]));
+  const by = {any: Object.values(ENTS)};
+  for (const e of by.any) (by[domainOf(e.id)] ||= []).push(e);
+  $('#lists').innerHTML = ['any','light','scene','automation','script','media_player','fan','climate','sensor'].map(d =>
+    `<datalist id="ents-${d}">${(by[d] || []).map(e => `<option value="${esc(e.id)}" label="${esc(e.name)}">`).join('')}</datalist>`).join('');
 }
+const entsOf = (domain, pred = () => true) => Object.values(ENTS).filter(e => domainOf(e.id) === domain && pred(e));
+const pm25 = () => entsOf('sensor', e => e.dc === 'pm25');
 
-function field(f, base) {
-  const path = `${base}.${f.k}`, v = getPath(P(), path) ?? f.d ?? '', b = `data-bind="${path}"`;
+/* ---------- form fields ---------- */
+function field(f, base, obj = P()) {
+  const path = `${base}.${f.k}`, v = getPath(obj, path) ?? f.d ?? '', b = `data-bind="${path}"`;
   const lab = `<span>${esc(f.l)}</span>`;
   switch (f.t) {
     case 'color':   return `<label class="f">${lab}<input type="color" ${b} value="${esc(v)}"></label>`;
     case 'range':   return `<label class="f"><span>${esc(f.l)}: <output>${esc(v)}${f.unit||''}</output></span><input type="range" ${b} min="${f.min}" max="${f.max}" value="${esc(v)}" data-unit="${f.unit||''}"></label>`;
-    case 'bool':    return `<label class="check"><input type="checkbox" ${b} ${v ? 'checked' : ''}><b>${esc(f.l)}</b></label>`;
+    case 'bool':    return `<label class="check" style="border:0;padding:0"><input type="checkbox" ${b} ${v ? 'checked' : ''}><b>${esc(f.l)}</b></label>`;
     case 'textarea':return `<label class="f">${lab}<textarea ${b} placeholder="${esc(f.ph||'')}">${esc(v)}</textarea></label>`;
     case 'select':  return `<label class="f">${lab}<select ${b}>${Object.entries(f.opts).map(([k, t]) => `<option value="${k}" ${k==v?'selected':''}>${esc(t)}</option>`).join('')}</select></label>`;
     case 'profile': return `<label class="f">${lab}<select ${b}><option value="">Choose…</option>${S.profiles.map(p => `<option value="${p.id}" ${p.id===v?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label>`;
-    case 'entity':  return `<label class="f">${lab}<input ${b} list="ents-${f.domain}" value="${esc(v)}" placeholder="${f.domain==='any'?'light.desk_lamp':f.domain+'.…'}" spellcheck="false"></label>`;
+    case 'entity':  return `<label class="f">${lab}<input ${b} data-ent list="ents-${f.domain}" value="${esc(v)}" placeholder="${f.domain==='any'?'light.desk_lamp':f.domain+'.…'}" spellcheck="false"><span class="ename">${esc(ename(v))}</span></label>`;
+    case 'opt': {
+      const opts = ENTS[getPath(obj, base + '.entity')]?.opts || [];
+      if (!opts.length) return `<label class="f">${lab}<input ${b} value="${esc(v)}" placeholder="Pick the device first" spellcheck="false"></label>`;
+      return `<label class="f">${lab}<select ${b}><option value="">Choose…</option>${opts.map(o => `<option value="${esc(o)}" ${o===v?'selected':''}>${esc(LT.modes[o] || o)}</option>`).join('')}</select></label>`;
+    }
     case 'capture': return `<label class="f">${lab}<input ${b} data-capture value="${esc(v)}" placeholder="Click here, then press the shortcut" readonly></label>`;
     case 'file':    return `<label class="f">${lab}<span><input ${b} value="${esc(v)}" placeholder="${esc(f.ph)}" spellcheck="false"><button class="btn sm" data-act="browse" data-for="${path}">Browse…</button></span></label>`;
     default:        return `<label class="f">${lab}<input ${b} value="${esc(v)}" placeholder="${esc(f.ph||'')}" spellcheck="false"></label>`;
@@ -256,42 +342,75 @@ const actionSelect = (path, cur) => {
   for (const [k, a] of Object.entries(ACTIONS)) (groups[a.g] ||= []).push(`<option value="${k}" ${k===cur?'selected':''}>${esc(a.l)}</option>`);
   return `<label class="f"><span>Action</span><select data-bind="${path}" data-retype>${Object.entries(groups).map(([g, o]) => `<optgroup label="${g}">${o.join('')}</optgroup>`).join('')}</select></label>`;
 };
+const fxSelect = (path, cur) => `<select class="ctl" data-bind="${path}">${Object.entries(FX).map(([k, l]) => `<option value="${k}" ${k===cur?'selected':''}>${l}</option>`).join('')}</select>`;
 const summary = a => {
   if (!a || a.type === 'none') return '';
-  if (a.entity) return a.entity.split('.')[1]?.replace(/_/g, ' ') || '';
+  if (a.type === 'ha_climate_mode') return LT.modes[a.mode] || a.mode || '';
+  if (a.type === 'ha_fan_preset') return a.preset || '';
+  if (a.entity) return ename(a.entity) || a.entity.split('.')[1]?.replace(/_/g, ' ') || '';
   if (a.type === 'launch') return (a.path || '').split(/[\\/]/).pop();
   if (a.type === 'hotkey') return a.keys || '';
   if (a.type === 'media') return ACTIONS.media.f[0].opts[a.cmd] || '';
   return ACTIONS[a.type]?.l || '';
 };
+const kindLabel = p => p.live?.type && p.live.type !== 'none' ? LIVE[p.live.type].l : '';
 
-/* ---------- views ---------- */
-const NAV = [['profiles','Profiles'],['ha','Home Assistant'],['device','Keypad'],['settings','Settings'],['spec','How it works']];
+/* ---------- sidebar ---------- */
+const NAV = [['ha','Home Assistant'],['device','Keypad'],['settings','Settings'],['help','Help']];
 function renderSide() {
-  $('#nav').innerHTML = NAV.map(([k, l]) => `<button data-view="${k}" aria-current="${view===k}">${l}</button>`).join('');
-  $('#plist').innerHTML = S.profiles.map((p, i) => `<li class="${p.id===S.active?'on':''}">
-    <button class="pick" data-pick="${p.id}"><span class="swatch" style="background:${esc(p.color)}"></span><span class="name">${esc(p.name)}</span>${p.id===S.active?'<span class="live">active</span>':''}</button>
-    <button class="icon" data-move="${i},-1" aria-label="Move ${esc(p.name)} up" ${i?'':'disabled'}>▲</button>
-    <button class="icon" data-move="${i},1" aria-label="Move ${esc(p.name)} down" ${i<S.profiles.length-1?'':'disabled'}>▼</button></li>`).join('');
+  $('#nav').innerHTML = NAV.map(([k, l]) => `<li><button data-view="${k}" aria-current="${view===k}">${ICON[k]}${l}</button></li>`).join('');
+  $('#plist').innerHTML = S.profiles.map((p, i) => `<li class="${p.id===S.active&&view==='profile'?'on':''}">
+    <button class="pick" data-pick="${p.id}"><span class="swatch" style="background:${esc(p.color)}"></span><span class="name">${esc(p.name)}</span><span class="kind">${p.id===S.active?'● active':''}</span></button>
+    <span class="mv"><button class="icon" data-move="${i},-1" aria-label="Move ${esc(p.name)} up" ${i?'':'disabled'}>▲</button><button class="icon" data-move="${i},1" aria-label="Move ${esc(p.name)} down" ${i<S.profiles.length-1?'':'disabled'}>▼</button></span></li>`).join('');
   $('#devDot').className = 'dot' + (ST.connected ? '' : ' off');
-  $('#devText').innerHTML = ST.connected ? `${esc(ST.model)} connected<br>${esc(ST.usb)}${ST.paused ? ' · paused' : ''}` : 'Keypad not found<br>Plug it in by USB';
+  $('#devText').textContent = ST.connected ? `${ST.model} connected${ST.paused ? ' · paused' : ''}` : 'Keypad not plugged in';
+  const haOk = Object.keys(ENTS).length > 0;
+  $('#haDot').className = 'dot' + (haOk ? '' : ST.tokenSet ? ' idle' : ' off');
+  $('#haText').textContent = haOk ? `Home Assistant · ${Object.keys(ENTS).length} entities` : ST.tokenSet ? 'Home Assistant · not reached' : 'Home Assistant not set up';
 }
 
+/* ---------- keypad drawing ---------- */
 function padHTML(p) {
-  return `<div class="pad" style="--glow:${p.led==='off'?'transparent':esc(p.color)}">
+  const flip = !!S.settings.flip, k = KNOB[p.knob.type] || KNOB.volume;
+  return `<div class="pad${flip ? ' flip' : ''}">
     <div class="pad-body">
-      ${p.keys.map((kk, i) => `<button class="key" data-key="${i}" aria-pressed="${sel.kind==='key'&&sel.i===i}" style="grid-column:${i%3+1};grid-row:${(i/3|0)+1}">
+      ${p.keys.map((kk, i) => `<button class="key" data-key="${i}" aria-pressed="${sel.kind==='key'&&sel.i===i}" style="grid-column:${i%3+(flip?2:1)};grid-row:${(i/3|0)+1}">
         <b>${esc(kk.label || summary(kk.tap) || 'Key '+(i+1))}</b><small>${kk.hold.type!=='none'?'+ hold':''}</small></button>`).join('')}
-      <div class="knob-wrap"><button class="knob" data-knob aria-pressed="${sel.kind==='knob'}" aria-label="Edit knob"></button></div>
+      <div class="knob-wrap" style="grid-column:${flip?1:4}"><button class="knob" data-knob aria-pressed="${sel.kind==='knob'}" aria-label="Edit knob"></button><span class="knob-cap">${esc(k.s)}${p.knob.entity ? '<br>' + esc(ename(p.knob.entity) || p.knob.entity) : ''}</span></div>
     </div>
-    <p class="hint">Click a key or the knob to edit it. Changes save automatically and work on the keypad straight away.</p>
   </div>`;
+}
+function padLook(p) {
+  if (PREVIEW) return PREVIEW;
+  if (p.live?.type && p.live.type !== 'none' && p.id === ST.active && ST.look) return ST.look;
+  return {color: p.color, fx: p.led, level: 1};
+}
+const T0 = performance.now();
+function animate() {
+  const pad = document.querySelector('.pad');
+  if (pad && S) {
+    const lk = padLook(P()), ks = levels(lk.fx, (performance.now() - T0) / 1000), [r, g, b] = hex2rgb(lk.color);
+    const lvl = (S.settings.ledBrightness > 0 ? 1 : 0) * (lk.level ?? 1);
+    pad.querySelectorAll('.key').forEach((el, i) => el.style.setProperty('--led', `rgba(${r},${g},${b},${(ks[i] * lvl).toFixed(3)})`));
+    pad.querySelector('.knob')?.style.setProperty('--led', `rgba(${r},${g},${b},${(.7 * lvl).toFixed(3)})`);
+  }
+  requestAnimationFrame(animate);
+}
+const mini = flip => `<span class="mini${flip ? ' flip' : ''}">${'<i></i>'.repeat(6)}<b></b></span>`;
+
+/* ---------- profile view ---------- */
+function liveChip(p) {
+  if (!p.live || p.live.type === 'none') return '';
+  if (p.id !== S.active) return `<span class="chip">${esc(LIVE[p.live.type].l)} · shows when active</span>`;
+  if (ST.liveError) return `<span class="chip" title="${esc(ST.liveError)}"><span class="dot off"></span>${esc(LIVE[p.live.type].l)} · no data</span>`;
+  const lk = ST.look || {};
+  return `<span class="chip on"><span class="swatch" style="background:${esc(lk.color)}"></span>${esc(ename(p.live.entity) || p.live.entity || LIVE[p.live.type].l)}${lk.caption ? ' · ' + esc(lk.caption) : ''}</span>`;
 }
 
 function inspectorHTML(p) {
   if (sel.kind === 'knob') {
     const k = KNOB[p.knob.type] || KNOB.volume;
-    return `<div class="card"><h2>Knob</h2><div class="fields">
+    return `<div class="card"><h2>Knob</h2><p class="desc">What turning does in this profile. Pressing the knob switches profile.</p><div class="fields">
       <label class="f"><span>Turning controls</span><select data-bind="knob.type" data-retype>${Object.entries(KNOB).map(([v, o]) => `<option value="${v}" ${v===p.knob.type?'selected':''}>${esc(o.l)}</option>`).join('')}</select></label>
       ${(k.f||[]).map(f => field(f, 'knob')).join('')}
       ${audioNote(k.note)}
@@ -299,130 +418,282 @@ function inspectorHTML(p) {
       ${field({k:'sens', l:'Sensitivity', t:'select', opts:{1:'Every click of the knob', 2:'Every 2 clicks', 3:'Every 3 clicks'}}, 'knob')}
       ${field({k:'accel', l:'Speed up when turned fast', t:'bool'}, 'knob')}
       ${field({k:'invert', l:'Reverse direction', t:'bool'}, 'knob')}
-      <p class="note">Pressing the knob switches to the next profile in every profile. Change press behaviour in <a href="#" data-view="settings">Settings</a>.</p>
     </div></div>`;
   }
-  const kk = p.keys[sel.i], a = kk[tab], base = `keys.${sel.i}.${tab}`;
-  return `<div class="card"><h2>Key ${sel.i + 1}</h2><div class="fields">
-    <label class="f"><span>Label</span><input data-bind="keys.${sel.i}.label" value="${esc(kk.label)}" placeholder="${esc(summary(kk.tap) || 'Name shown here')}"></label>
-    <div class="tabs" role="tablist"><button role="tab" data-tab="tap" aria-selected="${tab==='tap'}">Press</button><button role="tab" data-tab="hold" aria-selected="${tab==='hold'}">Hold</button></div>
+  const kk = p.keys[sel.i], a = kk[slot], base = `keys.${sel.i}.${slot}`;
+  return `<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Key ${sel.i + 1}</h2>
+      <div class="subtabs" role="tablist"><button role="tab" data-slot="tap" aria-selected="${slot==='tap'}">Press</button><button role="tab" data-slot="hold" aria-selected="${slot==='hold'}">Hold${kk.hold.type!=='none'?' ●':''}</button></div></div>
+    <div class="fields">
+    <label class="f"><span>Label on screen</span><input data-bind="keys.${sel.i}.label" value="${esc(kk.label)}" placeholder="${esc(summary(kk.tap) || 'Name shown on the key')}"></label>
     ${actionSelect(base + '.type', a.type)}
     ${(ACTIONS[a.type] || ACTIONS.none).f.map(f => field(f, base)).join('')}
     ${audioNote(ACTIONS[a.type]?.note)}
+    ${slot==='hold' ? '<p class="note">Hold = keep the key down for half a second. With a hold action set, the press action runs when you let go instead of instantly.</p>' : ''}
     ${a.type!=='none' ? `<div><button class="btn" data-act="test">Run now</button></div>` : ''}
-    ${tab==='hold' ? '<p class="note">Hold = keep the key down for half a second. With a hold action set, the press action runs when you let go instead of instantly.</p>' : ''}
   </div></div>`;
 }
 
-const banner = () => !ST.connected ? `<div class="banner">The keypad is not connected. You can still edit profiles; they apply when it is plugged in.</div>` : '';
-
-function viewProfiles() {
-  const p = P();
-  $('#main').innerHTML = banner() + `
-    <div class="card"><div class="head">
-      <label class="f"><span>Profile name</span><input data-bind="name" value="${esc(p.name)}"></label>
-      <label class="f"><span>Keypad light</span><input type="color" data-bind="color" value="${esc(p.color)}"></label>
-      <label class="f"><span>Light effect</span><select data-bind="led">${Object.entries(LED_MODES).map(([k, l]) => `<option value="${k}" ${k===p.led?'selected':''}>${l}</option>`).join('')}</select></label>
-      <label class="f"><span>Switch to this when using</span><input data-bind="apps" value="${esc(p.apps)}" placeholder="e.g. Photoshop.exe, Spotify.exe" spellcheck="false"></label>
-      <button class="btn danger" data-act="delProfile" ${S.profiles.length<2?'disabled':''}>Delete</button>
-    </div>${p.apps && !S.settings.autoSwitch ? '<p class="note" style="margin:10px 0 0">Automatic switching is off. Turn it on in <a href="#" data-view="settings">Settings</a>.</p>' : ''}</div>
-    <div class="grid2"><div>${padHTML(p)}</div><div id="insp">${inspectorHTML(p)}</div></div>`;
+function lightingHTML(p) {
+  const live = p.live || {type:'none'}, t = live.type;
+  const tiles = Object.entries(LIVE).map(([k, o]) => `<button class="tile" data-live="${k}" aria-pressed="${t===k}"><b>${o.l}</b><small>${o.d}</small></button>`).join('');
+  const prevBtn = (color, fx) => `<button class="btn sm" data-preview="${esc(color)}|${fx}">Preview</button>`;
+  let detail = '';
+  if (t === 'none') detail = `<div class="row" style="align-items:end">
+      <label class="f"><span>Colour</span><input type="color" data-bind="color" value="${esc(p.color)}"></label>
+      <label class="f" style="flex:1"><span>Effect</span>${fxSelect('led', p.led)}</label></div>`;
+  else if (t === 'light') detail = `<div class="fields">${field(ent('light', 'Light to follow'), 'live')}
+      ${field({k:'useColor', l:'Use the light’s own colour', t:'bool', d:true}, 'live')}
+      <div class="row" style="align-items:end"><label class="f"><span>Colour when not using the light’s</span><input type="color" data-bind="color" value="${esc(p.color)}"></label>
+      <label class="f" style="flex:1"><span>Effect</span>${fxSelect('led', p.led)}</label></div>
+      <p class="note">The keypad gets brighter and dimmer with the light. When the light is off the keypad glows faintly.</p></div>`;
+  else if (t === 'climate') {
+    const modes = live.modes || {}, supported = ENTS[live.entity]?.opts;
+    const rows = Object.keys(LT.climate).filter(m => !supported?.length || supported.includes(m)).map(m => {
+      const r = {...LT.climate[m], ...(modes[m] || {})}, color = r.color || p.color;
+      return `<tr><td>${esc(LT.modes[m] || m)}</td><td><input type="color" data-bind="live.modes.${m}.color" value="${esc(color)}"></td><td>${fxSelect(`live.modes.${m}.fx`, r.fx)}</td><td>${prevBtn(color, r.fx)}</td></tr>`;
+    }).join('');
+    detail = `<div class="fields">${field(ent('climate', 'Air conditioner'), 'live')}
+      <table><thead><tr><th>Mode</th><th>Colour</th><th>Animation</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="note">“Off” uses the profile colour, dimmed. Each mode has its own animation so you can tell them apart at a glance.</p></div>`;
+  } else if (t === 'air') {
+    const bands = live.bands || LT.air;
+    const rows = bands.map((b, i) => `<tr><td><input class="ctl" data-bind="live.bands.${i}.name" value="${esc(b.name)}" style="width:110px"></td>
+      <td>${i < bands.length - 1 ? `≤ <input class="ctl" type="number" min="0" data-bind="live.bands.${i}.max" value="${esc(b.max)}">` : 'above'}</td>
+      <td><input type="color" data-bind="live.bands.${i}.color" value="${esc(b.color)}"></td><td>${fxSelect(`live.bands.${i}.fx`, b.fx)}</td><td>${prevBtn(b.color, b.fx)}</td></tr>`).join('');
+    detail = `<div class="fields">${field(ent('sensor', 'PM2.5 sensor'), 'live')}
+      <table><thead><tr><th>Level</th><th>PM2.5 (µg/m³)</th><th>Colour</th><th>Animation</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      <p class="note">Default limits follow the US EPA PM2.5 scale. The keypad blinks red when the air is unhealthy.</p></div>`;
+  }
+  return `<div class="card"><h2>What the keypad light shows</h2><p class="desc">Applies while this profile is active. The colour is also used for the tray icon and on-screen name.</p><div class="tiles">${tiles}</div></div>
+    <div class="card">${detail}${PREVIEW ? `<p class="note" style="margin-top:12px">Previewing on screen only. <a href="#" data-act="stopPreview">Stop preview</a></p>` : ''}</div>`;
 }
 
+function viewProfile() {
+  const p = P();
+  const tabs = [['controls','Keys & knob'],['lighting','Lighting'],['switching','Auto-switch']];
+  let body;
+  if (ptab === 'controls') body = `<div class="grid2"><div class="sticky">${padHTML(p)}<p class="hint" style="margin-top:12px">Click a key or the knob to change what it does. Changes save automatically and work on the keypad straight away.</p></div><div id="insp">${inspectorHTML(p)}</div></div>`;
+  else if (ptab === 'lighting') body = `<div class="grid2"><div class="sticky">${padHTML(p)}</div><div>${lightingHTML(p)}</div></div>`;
+  else body = `<div class="card" style="max-width:640px"><h2>Switch to this profile automatically</h2><p class="desc">When one of these programs is in front, the keypad switches here, and back when you leave it.</p>
+      <div class="fields"><label class="f"><span>Programs</span><input data-bind="apps" value="${esc(p.apps)}" placeholder="e.g. Photoshop.exe, Spotify.exe" spellcheck="false"></label>
+      ${S.settings.autoSwitch ? '' : '<p class="note">Automatic switching is turned off. <a href="#" data-act="enableAuto">Turn it on</a></p>'}</div></div>`;
+  $('#main').innerHTML = banner() + `
+    <div class="phead">
+      <input type="color" data-bind="color" value="${esc(p.color)}" title="Profile colour" aria-label="Profile colour">
+      <input class="title" data-bind="name" value="${esc(p.name)}" aria-label="Profile name">
+      ${liveChip(p)}
+      <span class="spacer"></span>
+      <button class="btn sm" data-act="dupProfile">Duplicate</button>
+      <button class="btn sm danger" data-act="delProfile" ${S.profiles.length<2?'disabled':''}>Delete</button>
+    </div>
+    <div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" data-ptab="${k}" aria-selected="${ptab===k}">${l}</button>`).join('')}</div>
+    ${body}`;
+}
+
+const banner = () => !ST.connected ? `<div class="banner warn">The keypad is not plugged in. You can still edit profiles; they apply as soon as it is connected.</div>` : '';
+
+/* ---------- other views ---------- */
 function viewHA() {
-  $('#main').innerHTML = `<h1>Home Assistant</h1><p class="sub">Keypad Studio talks to Home Assistant directly over its API.</p>
-    <div class="card"><div class="fields" style="max-width:520px">
-      <label class="f"><span>Home Assistant address</span><input type="url" data-gbind="ha.url" value="${esc(S.ha.url)}" spellcheck="false"></label>
+  const list = (title, items) => items.length ? `<div><h3>${title}</h3><div class="list">${items.map(e => `<div>${esc(e.name || e.id)}<span>${esc(e.id)}</span></div>`).join('')}</div></div>` : '';
+  const haOk = Object.keys(ENTS).length > 0;
+  $('#main').innerHTML = `<h1>Home Assistant</h1><p class="sub">Keypad Studio talks to Home Assistant over its local API to control devices and read their state for the keypad light.</p>
+    <div class="card"><h2>Connection</h2><p class="desc">${haOk ? 'Connected.' : ST.tokenSet ? 'A token is saved, but Home Assistant has not answered yet.' : 'Not set up yet.'}</p><div class="fields" style="max-width:560px">
+      <label class="f"><span>Address</span><input type="url" data-gbind="ha.url" value="${esc(S.ha.url)}" spellcheck="false"></label>
       <label class="f"><span>Long-lived access token</span><span><input type="password" id="tok" placeholder="${ST.tokenSet ? 'Saved. Paste a new one to replace it' : 'Paste token'}" autocomplete="off"><button class="btn" data-act="saveToken">Save</button>${ST.tokenSet ? '<button class="btn danger" data-act="removeToken">Remove</button>' : ''}</span></label>
-      <p class="readout">${ST.tokenSet ? 'A token is saved.' : 'No token saved yet.'}</p>
-      <p class="note">In Home Assistant: click your name (bottom left) → Security → Long-lived access tokens → Create token. It is stored in Windows Credential Manager, not in the config file.</p>
-      <div class="row"><button class="btn primary" data-act="testHA">Test connection</button><span class="readout" id="haStatus"></span></div>
-    </div></div>`;
+      <p class="note">In Home Assistant: your profile (bottom left) → Security → Long-lived access tokens → Create token. It is stored in Windows Credential Manager, not in the config file.</p>
+      <div class="row"><button class="btn primary" data-act="testHA">Test connection</button><span class="hint" id="haStatus" style="text-align:left"></span></div>
+    </div></div>
+    ${haOk ? `<div class="card"><h2>Devices the keypad can use</h2><p class="desc">Pick these when you set up a profile. Use “New profile” for a ready-made layout.</p>
+      <div class="fields" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
+        ${list('Lights', entsOf('light'))}${list('Air conditioners', entsOf('climate'))}${list('Purifiers and fans', entsOf('fan'))}${list('Air quality sensors', pm25())}
+      </div></div>` : ''}`;
 }
 
 function viewDevice() {
   const map = ['Key 1','Key 2','Key 3','Key 4','Key 5','Key 6','Knob press','Knob turn right','Knob turn left'];
-  $('#main').innerHTML = `<h1>Keypad</h1><p class="sub">The keypad is programmed once. After that, everything on the Profiles page is handled by this app.</p>${banner()}
-    <div class="card"><h2>One-time setup</h2>
+  const flip = !!S.settings.flip;
+  $('#main').innerHTML = `<h1>Keypad</h1><p class="sub">How the keypad sits on your desk, its lights, and the one-time setup.</p>${banner()}
+    <div class="card"><h2>Orientation</h2><p class="desc">If the keypad is turned around, keys are renumbered so profiles still match what you see.</p>
+      <div class="tiles" style="max-width:520px">
+        <button class="tile" data-flip="0" aria-pressed="${!flip}">${mini(false)}<b>Knob on the right</b><small>As it comes out of the box</small></button>
+        <button class="tile" data-flip="1" aria-pressed="${flip}">${mini(true)}<b>Knob on the left</b><small>Keypad turned 180°</small></button>
+      </div></div>
+    <div class="card"><h2>Lights</h2><p class="desc">Each profile sets its own colour and animation on the Lighting tab. This is the overall brightness.</p><div class="fields" style="max-width:420px">
+      <label class="f"><span>Brightness: <output>${S.settings.ledBrightness}/4</output></span><input type="range" min="0" max="4" data-gbind="settings.ledBrightness" data-unit="/4" value="${S.settings.ledBrightness}"></label>
+      <p class="note">0 turns the lights off. Animations are drawn by this app, so the keypad shows its last colour while Keypad Studio is closed.</p></div></div>
+    <div class="card"><h2>One-time setup</h2><p class="desc">The keypad is programmed once so each control sends a key no normal keyboard has. After that everything is handled by this app.</p>
       <table><thead><tr><th>Control</th><th>Sends</th></tr></thead><tbody>
         ${map.map((c, i) => `<tr><td>${c}</td><td><kbd>F${13 + i}</kbd></td></tr>`).join('')}
       </tbody></table>
-      <p class="note" style="margin-top:12px">F13 to F21 exist on no normal keyboard, so they never clash with your typing. After programming, the keypad only does something while Keypad Studio is running. The original layout is backed up first.</p>
-      <div class="row" style="margin-top:10px"><button class="btn primary" data-act="program" ${ST.connected?'':'disabled'}>Program keypad</button><button class="btn" data-act="restore" ${ST.connected?'':'disabled'}>Restore original keys</button></div>
-    </div>
-    <div class="card"><h2>Lights</h2><div class="fields" style="max-width:420px">
-      <label class="f"><span>Brightness: <output>${S.settings.ledBrightness}/4</output></span><input type="range" min="0" max="4" data-gbind="settings.ledBrightness" data-unit="/4" value="${S.settings.ledBrightness}"></label>
-      <p class="note">Each profile sets its own colour and effect; this is the overall brightness. 0 turns the lights off.</p></div></div>`;
+      <p class="note" style="margin-top:12px">After programming, the keypad only does something while Keypad Studio is running. The original layout is backed up first.</p>
+      <div class="row" style="margin-top:12px"><button class="btn primary" data-act="program" ${ST.connected?'':'disabled'}>Program keypad</button><button class="btn" data-act="restore" ${ST.connected?'':'disabled'}>Restore original keys</button></div>
+    </div>`;
 }
 
 const SETTINGS = [
-  ['startup', 'Start with Windows', 'Runs quietly in the system tray after you sign in.'],
-  ['osd', 'Show profile name on screen when switching', ''],
-  ['dblPrev', 'Double-press knob: previous profile', 'Makes single presses about 0.3 s slower, because the app waits to see if a second press follows.'],
-  ['autoSwitch', 'Switch profile automatically by app', 'Uses the "Switch to this when using" list on each profile, and switches back when you leave that app.'],
-  ['sleepLocked', 'Turn keypad lights off when the PC is locked', ''],
+  ['Startup', [['startup', 'Start with Windows', 'Runs quietly in the system tray after you sign in.']]],
+  ['Switching profiles', [
+    ['osd', 'Show the profile name on screen when switching', ''],
+    ['dblPrev', 'Double-press knob goes to the previous profile', 'Makes single presses about 0.3 s slower, because the app waits to see if a second press follows.'],
+    ['autoSwitch', 'Switch profile automatically by program', 'Uses each profile’s Auto-switch tab, and switches back when you leave that program.']]],
+  ['Power', [['sleepLocked', 'Turn keypad lights off when the PC is locked', '']]],
 ];
 function viewSettings() {
   $('#main').innerHTML = `<h1>Settings</h1><p class="sub">How the app behaves in the background.</p>
-    <div class="card">${SETTINGS.map(([k, l, d]) => `<label class="check"><input type="checkbox" data-gbind="settings.${k}" ${S.settings[k]?'checked':''}><span><b>${l}</b><small>${d}</small></span></label>`).join('')}
-      <label class="f" style="max-width:360px;margin-top:8px"><span>Hold knob down</span><select data-gbind="settings.longPress">
+    ${SETTINGS.map(([title, items], gi) => `<div class="card" style="max-width:720px"><h2 style="margin-bottom:12px">${title}</h2>
+      ${items.map(([k, l, d]) => `<label class="check"><input type="checkbox" data-gbind="settings.${k}" ${S.settings[k]?'checked':''}><span><b>${l}</b><small>${d}</small></span></label>`).join('')}
+      ${gi === 1 ? `<label class="f" style="max-width:380px;margin-top:8px"><span>Hold the knob down</span><select data-gbind="settings.longPress">
         ${Object.entries({none:'Nothing', picker:'Pick a profile: hold, turn, release', mute:'Mute speakers', mic:'Mute / unmute microphone'}).map(([k, l]) => `<option value="${k}" ${S.settings.longPress===k?'selected':''}>${l}</option>`).join('')}
-      </select></label>
-    </div>
-    <div class="card"><h2>Files</h2><p class="note">Config and log are in <kbd>${esc((ST.logPath||'').replace(/[^\\]+$/, ''))}</kbd></p>
-      <div class="row" style="margin-top:10px"><button class="btn" data-act="export">Show config file</button></div></div>`;
+      </select></label>` : ''}</div>`).join('')}
+    <div class="card" style="max-width:720px"><h2>Files</h2><p class="desc">Config and log are in <kbd>${esc((ST.logPath||'').replace(/[^\\]+$/, ''))}</kbd></p>
+      <button class="btn" data-act="export">Show config file</button></div>`;
 }
 
-function viewSpec() {
-  $('#main').innerHTML = `<h1>How it works</h1><p class="sub">What happens between a key press and a light turning on.</p>
-    <div class="card"><ol class="flow">
-      <li>The <b>keypad</b> is programmed once (Keypad page) so each key and knob movement sends one of F13 to F21.</li>
-      <li><b>Keypad Studio</b> runs in the tray, catches those keys before any other program sees them, and looks up the <b>active profile</b>.</li>
-      <li>It runs that key's action: a Home Assistant API call, launching a program, changing volume, and so on.</li>
-      <li><b>Knob press</b> moves to the next profile. The keypad light and tray icon change to that profile's colour and its name appears on screen.</li>
+function viewHelp() {
+  $('#main').innerHTML = `<h1>Help</h1><p class="sub">What happens between a key press and a device reacting.</p>
+    <div class="card"><h2>The knob</h2><table><tbody>
+      <tr><td>Turn</td><td>Whatever the profile sets: volume, brightness, AC temperature, fan speed…</td></tr>
+      <tr><td>Press</td><td>Next profile${S.settings.dblPrev ? '; double-press for the previous one' : ''}</td></tr>
+      <tr><td>Hold, turn, release</td><td>${S.settings.longPress === 'picker' ? 'Pick any profile' : 'Set in Settings'}</td></tr>
+    </tbody></table></div>
+    <div class="card"><h2>How it works</h2><ol class="flow">
+      <li>The keypad is programmed once (Keypad page) so each key and knob movement sends one of F13 to F21.</li>
+      <li>Keypad Studio runs in the tray, catches those keys before any other program sees them, and looks up the active profile.</li>
+      <li>It runs that key’s action: a Home Assistant call, launching a program, changing volume, and so on.</li>
+      <li>The keypad light is drawn by the app: a fixed colour, or live from Home Assistant (a light’s brightness, an AC’s mode, the air quality), checked every two seconds and right after each action.</li>
       <li>Right-click the tray icon to switch profile, pause the keypad, open this window or quit.</li>
     </ol></div>`;
 }
 
+let lastView = '';
 function render() {
+  const y = scrollY, same = lastView === view + ptab;
   renderSide();
-  ({profiles:viewProfiles, ha:viewHA, device:viewDevice, settings:viewSettings, spec:viewSpec})[view]();
+  ({profile:viewProfile, ha:viewHA, device:viewDevice, settings:viewSettings, help:viewHelp})[view]();
+  lastView = view + ptab;
+  scrollTo(0, same ? y : 0);
 }
 const refreshPad = () => { const pad = document.querySelector('.pad'); if (pad) pad.outerHTML = padHTML(P()); renderSide(); save(); };
 
+/* ---------- new profile templates ---------- */
+const white = (e, kelvin, brightness, label) => K(label, {type:'ha_white', entity:e, kelvin, brightness});
+const TEMPLATES = {
+  light: {l:'Light', d:'Presets on the keys, brightness on the knob. The keypad dims with the light.', domain:'light', color:'#ffb347',
+    make: e => ({knob:{type:'ha_brightness', entity:e, step:10}, live:{type:'light', entity:e, useColor:true},
+      keys:[white(e, 2700, 100, 'Warm'), white(e, 5000, 100, 'Daylight'), K('Colour', {type:'ha_light', entity:e, color:'#03b8fc', brightness:100}),
+            K('On / off', {type:'ha_toggle', entity:e}), white(e, 2200, 15, 'Dim'), white(e, 4000, 50, 'Half')]})},
+  purifier: {l:'Air purifier', d:'Modes on the keys, fan speed on the knob. The keypad shows air quality.', domain:'fan', color:'#3ad29f',
+    make: (e, s) => { const opts = (ENTS[e]?.opts || []).slice(0, 4), keys = opts.map(o => K(o, {type:'ha_fan_preset', entity:e, preset:o}));
+      keys.push(K('On / off', {type:'ha_toggle', entity:e})); while (keys.length < 6) keys.push(blankKey());
+      return {knob:{type:'ha_fan_speed', entity:e, step:Math.min(50, Math.ceil(ENTS[e]?.step || 10))}, live:s ? {type:'air', entity:s} : {type:'none'}, keys}; }},
+  ac: {l:'Air conditioner', d:'A mode on each key, temperature on the knob. The keypad shows the mode.', domain:'climate', color:'#2f8bff',
+    make: e => { const sup = ENTS[e]?.opts, modes = ['cool','heat','auto','dry','fan_only','off'].filter(m => !sup?.length || sup.includes(m));
+      const keys = modes.map(m => K(LT.modes[m] || m, {type:'ha_climate_mode', entity:e, mode:m})); while (keys.length < 6) keys.push(blankKey());
+      return {knob:{type:'ha_climate_temp', entity:e, step:1}, live:{type:'climate', entity:e}, keys}; }},
+  pc: {l:'PC & media', d:'Apps, media keys and system volume.', color:'#4f8cff',
+    make: () => ({knob:{type:'volume', step:2, accel:true}, live:{type:'none'}, keys:[
+      K('Browser', {type:'url', url:'https://www.google.com'}), K('Notepad', {type:'launch', path:'notepad.exe', args:''}), K('Terminal', {type:'launch', path:'wt.exe', args:''}),
+      K('Play/pause', {type:'media', cmd:'play_pause'}), K('Next', {type:'media', cmd:'next'}), K('Snip', {type:'hotkey', keys:'Win+Shift+S'})]})},
+  blank: {l:'Blank', d:'Six empty keys and the volume knob.', color:'#a0a7b4',
+    make: () => ({knob:{type:'volume', step:2}, live:{type:'none'}, keys:Array.from({length:6}, blankKey)})},
+};
+let NEW = {tpl:'light', entity:'', sensor:'', name:''};
+function bestSensor(fanId) {  // the PM2.5 sensor that shares the most of the purifier's entity id
+  const obj = (fanId || '').split('.')[1] || '', pre = id => { const o = id.split('.')[1]; let i = 0; while (i < o.length && o[i] === obj[i]) i++; return i; };
+  return pm25().sort((a, b) => pre(b.id) - pre(a.id))[0]?.id || '';
+}
+function newDialog() {
+  const t = TEMPLATES[NEW.tpl], devs = t.domain ? entsOf(t.domain) : [];
+  if (t.domain && !devs.some(e => e.id === NEW.entity)) NEW.entity = devs[0]?.id || '';
+  if (NEW.tpl === 'purifier' && !NEW.sensor) NEW.sensor = bestSensor(NEW.entity);
+  const pick = (id, label, list, cur, dom) => list.length
+    ? `<label class="f"><span>${label}</span><select id="${id}">${list.map(e => `<option value="${esc(e.id)}" ${e.id===cur?'selected':''}>${esc(e.name && list.filter(x => x.name === e.name).length < 2 ? e.name : `${e.name || ''} (${e.id})`.trim())}</option>`).join('')}</select></label>`
+    : `<label class="f"><span>${label}</span><input id="${id}" list="ents-${dom}" value="${esc(cur)}" placeholder="${dom}.…" spellcheck="false"></label>`;
+  const d = $('#dlg');
+  d.innerHTML = `<h2>New profile</h2><p class="desc">Start from a layout made for the device, then change anything you like.</p>
+    <div class="tiles">${Object.entries(TEMPLATES).map(([k, o]) => `<button class="tile" data-tpl="${k}" aria-pressed="${NEW.tpl===k}"><b>${o.l}</b><small>${o.d}</small></button>`).join('')}</div>
+    <div class="fields" style="margin-top:16px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+      ${t.domain ? pick('newEnt', {light:'Light', fan:'Purifier', climate:'Air conditioner'}[t.domain], devs, NEW.entity, t.domain) : ''}
+      ${NEW.tpl === 'purifier' ? pick('newSensor', 'Air quality sensor (PM2.5)', pm25(), NEW.sensor, 'sensor') : ''}
+      <label class="f"><span>Profile name</span><input id="newName" value="${esc(NEW.name)}" placeholder="${esc(defaultName())}"></label>
+    </div>
+    ${t.domain && !Object.keys(ENTS).length ? '<p class="note" style="margin-top:12px">Connect Home Assistant first to pick devices from a list.</p>' : ''}
+    <div class="dlg-foot"><button class="btn" data-act="closeDlg">Cancel</button><button class="btn primary" data-act="createProfile">Create profile</button></div>`;
+  if (!d.open) d.showModal();
+}
+function defaultName() {
+  const t = TEMPLATES[NEW.tpl], e = ENTS[NEW.entity];
+  return (t.domain && (e?.name || '').trim()) || t.l;
+}
+function readNew() {
+  NEW.entity = $('#newEnt')?.value ?? NEW.entity; NEW.sensor = $('#newSensor')?.value ?? NEW.sensor; NEW.name = $('#newName')?.value ?? NEW.name;
+}
+
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-view],[data-pick],[data-move],[data-key],[data-knob],[data-tab],[data-act]');
+  const t = e.target.closest('[data-view],[data-pick],[data-move],[data-key],[data-knob],[data-slot],[data-ptab],[data-live],[data-flip],[data-tpl],[data-preview],[data-act]');
   if (!t) return;
   const d = t.dataset;
   if (d.view) { e.preventDefault(); view = d.view; render(); }
-  else if (d.pick) { view = 'profiles'; S.active = d.pick; render(); api('/api/activate', 'POST', {id: d.pick}).catch(err => toast(err.message)); }
-  else if (d.move) { const [i, dir] = d.move.split(',').map(Number), a = S.profiles; [a[i], a[i+dir]] = [a[i+dir], a[i]]; render(); save(); }
-  else if (d.key) { sel = {kind:'key', i:+d.key}; tab = 'tap'; render(); }
-  else if ('knob' in d) { sel = {kind:'knob'}; render(); }
-  else if (d.tab) { tab = d.tab; render(); }
-  else if (d.act) ACTS[d.act]?.(t);
+  else if (d.pick) { view = 'profile'; PREVIEW = null; if (S.active !== d.pick) { S.active = d.pick; ST.look = null; api('/api/activate', 'POST', {id: d.pick}).catch(err => toast(err.message)); } render(); }
+  else if (d.move) { const [i, dir] = d.move.split(',').map(Number), a = S.profiles; [a[i], a[i+dir]] = [a[i+dir], a[i]]; renderSide(); save(); }
+  else if (d.key) { sel = {kind:'key', i:+d.key}; slot = 'tap'; ptab = 'controls'; render(); }
+  else if ('knob' in d) { sel = {kind:'knob'}; ptab = 'controls'; render(); }
+  else if (d.slot) { slot = d.slot; render(); }
+  else if (d.ptab) { ptab = d.ptab; PREVIEW = null; render(); }
+  else if (d.live) setLive(d.live);
+  else if (d.flip) { S.settings.flip = d.flip === '1'; render(); save(); }
+  else if (d.tpl) { readNew(); NEW.tpl = d.tpl; NEW.name = ''; NEW.sensor = ''; newDialog(); }
+  else if (d.preview) { const [color, fx] = d.preview.split('|'); PREVIEW = {color, fx, level:1}; render(); }
+  else if (d.act) { e.preventDefault(); ACTS[d.act]?.(t); }
 });
 
-const bindValue = el => el.type === 'checkbox' ? el.checked : el.type === 'range' ? +el.value : el.dataset.bind?.endsWith('.sens') ? +el.value : el.value;
+function guessEntity(p, domain) {
+  const used = [p.knob.entity, ...p.keys.flatMap(k => [k.tap.entity, k.hold.entity])].find(x => domainOf(x) === domain);
+  if (used) return used;
+  if (domain === 'sensor') { const fan = [p.knob.entity, ...p.keys.map(k => k.tap.entity)].find(x => domainOf(x) === 'fan'); return fan ? bestSensor(fan) : pm25()[0]?.id || ''; }
+  return entsOf(domain)[0]?.id || '';
+}
+function setLive(type) {
+  const p = P(), cur = p.live || {type:'none'};
+  if (cur.type === type) return;
+  const next = {type};
+  if (type !== 'none') next.entity = domainOf(cur.entity) === LIVE[type].domain ? cur.entity : guessEntity(p, LIVE[type].domain);
+  if (type === 'light') next.useColor = true;
+  if (type === 'climate') next.modes = clone(LT.climate);
+  if (type === 'air') next.bands = clone(LT.air);
+  p.live = next; PREVIEW = null; ST.look = null; render(); save();
+}
+
+const bindValue = el => el.type === 'checkbox' ? el.checked : el.type === 'range' ? +el.value : el.type === 'number' ? (el.value === '' ? null : +el.value) : el.dataset.bind?.endsWith('.sens') ? +el.value : el.value;
 document.addEventListener('input', e => {
   const el = e.target;
+  if (el.closest('dialog')) return;
   if (el.type === 'range') { const o = el.closest('label')?.querySelector('output'); if (o) o.textContent = el.value + (el.dataset.unit || ''); }
-  if (el.dataset.bind && !('retype' in el.dataset)) { setPath(P(), el.dataset.bind, bindValue(el)); refreshPad(); }
+  if (el.dataset.bind && !('retype' in el.dataset)) {
+    setPath(P(), el.dataset.bind, bindValue(el));
+    if ('ent' in el.dataset) { const n = el.closest('label')?.querySelector('.ename'); if (n) n.textContent = ename(el.value); }
+    if (/^live\.modes\.\w+\.|^live\.bands\.\d+\./.test(el.dataset.bind)) PREVIEW = null;
+    refreshPad();
+  }
   if (el.dataset.gbind) { setPath(S, el.dataset.gbind, bindValue(el)); save(); }
 });
 document.addEventListener('change', e => {
   const el = e.target;
+  if (el.closest('dialog')) { if (el.id === 'newEnt') { readNew(); NEW.sensor = NEW.tpl === 'purifier' ? bestSensor(NEW.entity) : ''; newDialog(); } return; }
+  if ('ent' in el.dataset || el.dataset.bind?.startsWith('live.')) { render(); return; }  // mode lists and previews depend on these
   if (!('retype' in el.dataset)) return;
   const path = el.dataset.bind.replace(/\.type$/, ''), isKnob = path === 'knob', def = isKnob ? KNOB : ACTIONS;
   const old = getPath(P(), path), next = {type: el.value};
   if (old.entity) next.entity = old.entity;
   if (isKnob) Object.assign(next, {step: Math.min(old.step || 5, KNOB[el.value].max), sens: old.sens || 1, accel: !!old.accel, invert: !!old.invert});
   for (const f of (def[el.value].f || [])) if (f.d !== undefined && next[f.k] === undefined) next[f.k] = f.d;
+  for (const f of (def[el.value].f || [])) if (f.t === 'entity' && f.domain !== 'any' && domainOf(next.entity) !== f.domain) next.entity = guessEntity(P(), f.domain);
   setPath(P(), path, next); render(); save();
 });
 document.addEventListener('keydown', e => {
   const el = e.target;
+  if (el.classList?.contains('title') && e.key === 'Enter') { el.blur(); return; }
   if (!('capture' in (el.dataset || {})) || e.key === 'Tab') return;
   e.preventDefault();
   if (['Control','Shift','Alt','Meta'].includes(e.key)) return;
@@ -434,63 +705,83 @@ document.addEventListener('keydown', e => {
   setPath(P(), el.dataset.bind, el.value); refreshPad();
 });
 
+function addProfile(p) {
+  S.profiles.push(p); S.active = p.id; view = 'profile'; ptab = 'controls'; sel = {kind:'key', i:0}; PREVIEW = null; ST.look = null;
+  render(); flush().then(() => api('/api/activate', 'POST', {id: p.id})).catch(err => toast(err.message));
+}
 const ACTS = {
-  addProfile() {
-    const id = uid();
-    S.profiles.push({id, name:'New profile', color:'#3ad29f', led:'steady', apps:'',
-      knob:{type:'volume', step:2, sens:1, accel:true, invert:false}, keys:Array.from({length:6}, newKey)});
-    S.active = id; view = 'profiles'; sel = {kind:'key', i:0}; render(); save();
-    api('/api/activate', 'POST', {id}).catch(() => {});
+  newProfile() { NEW = {tpl: Object.keys(ENTS).length ? 'light' : 'blank', entity:'', sensor:'', name:''}; newDialog(); },
+  closeDlg() { $('#dlg').close(); },
+  createProfile() {
+    readNew();
+    const t = TEMPLATES[NEW.tpl];
+    if (t.domain && !NEW.entity) { toast('Pick a device first.'); return; }
+    const made = t.make(NEW.entity, NEW.sensor);
+    addProfile({id: uid(), name: NEW.name.trim() || defaultName(), color: t.color, led: 'steady', apps: '', ...made,
+      knob: {step: 2, sens: 1, accel: false, invert: false, ...made.knob}});
+    $('#dlg').close(); toast('Profile created. It is active now.');
   },
+  dupProfile() { const p = clone(P()); p.id = uid(); p.name += ' copy'; addProfile(p); },
   delProfile() {
     const p = P(); if (!confirm(`Delete profile "${p.name}"?`)) return;
     S.profiles = S.profiles.filter(x => x.id !== p.id); S.active = S.profiles[0].id; render(); save();
+    api('/api/activate', 'POST', {id: S.active}).catch(() => {});
   },
-  test(btn) { busy(btn, async () => { clearTimeout(saveT); await api('/api/config', 'PUT', S); await api('/api/run', 'POST', {profile: P().id, key: sel.i, slot: tab}); toast('Done.'); }); },
+  enableAuto() { S.settings.autoSwitch = true; render(); save(); },
+  stopPreview() { PREVIEW = null; render(); },
+  test(btn) { busy(btn, async () => { await flush(); await api('/api/run', 'POST', {profile: P().id, key: sel.i, slot}); toast('Done.'); }); },
   browse(btn) { busy(btn, async () => { const r = await api('/api/browse', 'POST'); if (r.path) { setPath(P(), btn.dataset.for, r.path.replace(/\//g, '\\')); render(); save(); } }); },
-  saveToken(btn) { busy(btn, async () => { await api('/api/token', 'POST', {token: $('#tok').value}); ST.tokenSet = true; viewHA(); toast('Token saved.'); }); },
-  removeToken(btn) { if (confirm('Remove the saved Home Assistant token?')) busy(btn, async () => { await api('/api/token', 'POST', {remove: true}); ST.tokenSet = false; viewHA(); toast('Token removed.'); }); },
+  saveToken(btn) { busy(btn, async () => { await api('/api/token', 'POST', {token: $('#tok').value}); ST.tokenSet = true; await loadEntities(); render(); toast('Token saved.'); }); },
+  removeToken(btn) { if (confirm('Remove the saved Home Assistant token?')) busy(btn, async () => { await api('/api/token', 'POST', {remove: true}); ST.tokenSet = false; setEntities([]); render(); toast('Token removed.'); }); },
   testHA(btn) { busy(btn, async () => {
-    clearTimeout(saveT); await api('/api/config', 'PUT', S);
+    await flush();
     $('#haStatus').textContent = 'Testing…';
-    try { const r = await api('/api/ha/test', 'POST'); $('#haStatus').textContent = r.message; setEntities(r.entities); }
+    try { const r = await api('/api/ha/test', 'POST'); setEntities(r.entities); render(); $('#haStatus').textContent = r.message; }
     catch (e) { $('#haStatus').textContent = e.message; }
   }); },
   program(btn) { if (confirm('Program the keypad to send F13–F21? Its keys will only work while Keypad Studio runs. The original layout is backed up first.')) busy(btn, async () => toast((await api('/api/program', 'POST')).message)); },
-  restore(btn) { if (confirm('Put back the keypad\u2019s original keys (numpad 4, 5, 6, macro, 2, 3 and the volume knob)?')) busy(btn, async () => toast((await api('/api/restore', 'POST')).message)); },
+  restore(btn) { if (confirm('Put back the keypad’s original keys (numpad 4, 5, 6, macro, 2, 3 and the volume knob)?')) busy(btn, async () => toast((await api('/api/restore', 'POST')).message)); },
   export() {
     const d = $('#dlg');
-    d.innerHTML = `<h2>config.json</h2><pre>${esc(JSON.stringify(S, null, 2))}</pre><form method="dialog" class="row"><button class="btn primary">Close</button></form>`;
+    d.innerHTML = `<h2>config.json</h2><pre>${esc(JSON.stringify(S, null, 2))}</pre><div class="dlg-foot"><button class="btn primary" data-act="closeDlg">Close</button></div>`;
     d.showModal();
   },
 };
 
 /* ---------- startup + live status ---------- */
+async function loadEntities() { try { setEntities((await api('/api/ha/entities')).entities); } catch {} }
 async function poll(first) {
   try {
     const r = await api('/api/state');
-    const was = S?.active, conn = ST.connected;
+    const conn = ST.connected, lookWas = JSON.stringify([ST.look, ST.liveError]);
     ST = r.status;
-    if (first) S = r.config;
+    if (first) { S = r.config; LT = r.lighting; }
     else if (!dirty && JSON.stringify(r.config) !== JSON.stringify(S)) {  // changed elsewhere (knob, tray, another window)
       const editing = document.activeElement?.matches('input,textarea,select');
-      S = r.config; if (view === 'profiles' && !editing) render(); else renderSide(); return;
+      S = r.config; if (!editing) render(); else renderSide(); return;
     }
-    if (first || conn !== ST.connected) render(); else renderSide();
+    if (first || conn !== ST.connected) render();
+    else {
+      renderSide();
+      const chip = document.querySelector('.phead .chip');
+      if (chip && lookWas !== JSON.stringify([ST.look, ST.liveError])) chip.outerHTML = liveChip(P());
+    }
   } catch (e) {
     if (!first && /key/.test(e.message)) {  // app restarted with a new key: this tab is stale
       clearInterval(pollT);
-      $('#main').innerHTML = '<div class="banner">Keypad Studio was restarted. Close this tab and open settings from the tray icon.</div>';
+      $('#main').innerHTML = '<div class="banner">Keypad Studio was restarted. Close this window and open settings from the tray icon.</div>';
       return;
     }
     if (first) { $('#main').innerHTML = `<div class="banner">${esc(e.message)}. Open this window from the Keypad Studio tray icon.</div>`; return; }
   }
-  if (first) api('/api/audio').then(r => { AUDIO = r; }).catch(() => {});
-  if (first) api('/api/ha/entities').then(r => setEntities(r.entities)).catch(() => {});
+  if (first) {
+    api('/api/audio').then(r => { AUDIO = r; }).catch(() => {});
+    loadEntities().then(render);
+  }
 }
 setEntities([]);
 let pollT;
-poll(true).then(() => { pollT = setInterval(poll, 1500); });
+poll(true).then(() => { pollT = setInterval(poll, 1500); requestAnimationFrame(animate); });
 </script>
 </body>
 </html>

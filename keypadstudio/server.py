@@ -17,7 +17,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from . import actions, config, win
+from . import actions, config, lighting, win
 
 UI_PATH = Path(__file__).resolve().parent / "ui.html"
 PREFERRED_PORT = 47613
@@ -32,7 +32,9 @@ def make_routes(app):
 
     def state(_):
         return {"config": eng.cfg, "status": {**app.device.status(), "active": eng.cfg["active"], "paused": eng.paused,
-                                               "tokenSet": bool(app.token()), "logPath": str(config.LOG_PATH)}}
+                                               "tokenSet": bool(app.token()), "logPath": str(config.LOG_PATH),
+                                               "look": eng.look(), "liveError": eng.live_error},
+                "lighting": {"climate": lighting.DEFAULT_CLIMATE, "air": lighting.DEFAULT_AIR, "modes": lighting.MODE_NAMES}}
 
     def put_config(body):
         try:
@@ -54,7 +56,7 @@ def make_routes(app):
         try:
             ha = eng.ha()
             msg = ha.ping()
-            eng.entities = ha.entity_ids()
+            eng.entities = ha.entities()
         except actions.ActionError as e:
             raise ApiError(str(e)) from e
         return {"message": f"Connected ({msg}). Found {len(eng.entities)} entities.", "entities": eng.entities}
@@ -62,7 +64,7 @@ def make_routes(app):
     def entities(_):
         if not eng.entities and app.token():
             try:
-                eng.entities = eng.ha().entity_ids()
+                eng.entities = eng.ha().entities()
             except actions.ActionError:
                 pass
         return {"entities": eng.entities}

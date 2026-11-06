@@ -93,6 +93,37 @@ def test_turn():
     assert e.knobbed == [-1, -3, -2, -1], e.knobbed
 
 
+def test_flip():
+    e = FakeEngine(flip=True)
+    e.profile()["keys"][0]["tap"]["label"] = "top-left"
+    press(e, 5, 0, 0.1)  # physical key 6 is top-left when the pad is turned around
+    assert e.ran == ["top-left"], e.ran
+
+
+def test_lighting():
+    from keypadstudio.lighting import DEFAULT_AIR, EFFECTS, FLOOR, frame, levels, look
+    p = {"color": "#102030", "led": "steady"}
+    assert look(p, None)["color"] == "#102030"
+    ac = {**p, "live": {"type": "climate", "entity": "climate.x"}}
+    assert look(ac, {"state": "cool", "attributes": {"temperature": 24}})["fx"] == "wave"
+    assert look(ac, {"state": "off", "attributes": {}})["color"] == "#102030"
+    assert look(ac, {"state": "unavailable"})["fx"] == "dim"
+    air = {**p, "live": {"type": "air"}}
+    assert [look(air, {"state": v})["color"] for v in ("5", "20", "40", "300")] == [b["color"] for b in DEFAULT_AIR]
+    lamp = {**p, "live": {"type": "light", "useColor": False}}
+    assert abs(look(lamp, {"state": "on", "attributes": {"brightness": 128}})["level"] - 0.5) < 0.01
+    assert look(lamp, {"state": "off"})["level"] == FLOOR
+    for fx in EFFECTS:
+        for t in (0, 0.37, 1.3, 7.9):
+            ks = levels(fx, t)
+            assert len(ks) == 6 and all(0 <= k <= 1 for k in ks), (fx, t, ks)
+    assert frame((255, 0, 0), 0.5, "steady", 0) == [(128, 0, 0)] * 6
+    # unique look for every AC mode
+    from keypadstudio.lighting import DEFAULT_CLIMATE
+    looks = [(r["color"], r["fx"]) for r in DEFAULT_CLIMATE.values()]
+    assert len(set(looks)) == len(looks)
+
+
 def test_paused():
     e = FakeEngine()
     e.paused = True
@@ -124,6 +155,10 @@ def test_config():
         except config.ConfigError:
             continue
         raise AssertionError(broken)
+    old = copy.deepcopy(config.DEFAULT)
+    old["profiles"][0]["led"] = "tidal"
+    migrated = config.validate(old)["profiles"][0]
+    assert migrated["led"] == "wave" and migrated["live"] == {"type": "none"}
     assert engine._app_names("Photoshop.exe, spotify ; Code") == {"photoshop.exe", "spotify.exe", "code.exe"}
 
 
