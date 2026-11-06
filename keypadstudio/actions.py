@@ -1,4 +1,4 @@
-"""What a key press or knob turn does. Pure dispatch; no state of its own."""
+"""What a key press or knob turn does. Pure dispatch; the only state is the knob's last brightness."""
 
 from __future__ import annotations
 
@@ -6,10 +6,16 @@ import json
 import os
 import subprocess
 import threading
+import time
 import urllib.error
 import urllib.request
 
 from . import win
+
+# entity -> (brightness % we last sent, when). While the knob turns, HA's state lags behind the
+# light (fades, slow reports), so relative steps computed by HA overshoot or switch it back on.
+_level: dict[str, tuple[int, float]] = {}
+LEVEL_TRUST_S = 3.0  # after this long idle, re-read the real brightness (someone may have changed it)
 
 
 class ActionError(Exception):
@@ -32,7 +38,8 @@ class HomeAssistant:
                 data = r.read()
                 return json.loads(data) if data else None
         except urllib.error.HTTPError as e:
-            raise ActionError({401: "Home Assistant rejected the token", 404: f"not found: {path}"}.get(e.code, f"Home Assistant error {e.code}")) from e
+            raise ActionError({401: "Home Assistant rejected the token", 404: f"not found: {path}",
+                               500: "the device refused (details in the Home Assistant log)"}.get(e.code, f"Home Assistant error {e.code}")) from e
         except (urllib.error.URLError, TimeoutError, OSError) as e:
             raise ActionError(f"cannot reach Home Assistant at {self.url}") from e
 
@@ -133,7 +140,7 @@ def run(a: dict, ha, switch_profile, notify=_no_notify) -> None:
         elif t == "ha_script":
             ha().call("script", "turn_on", e)
         elif t == "ha_fan_preset":
-            ha().call("fan", "set_preset_mode", {**e, "preset_mode": _need(a, "preset")})
+            ha().call("fan", "turn_on", {**e, "preset_mode": _need(a, "preset")})  # also works while it is off
         elif t == "ha_climate_mode":
             ha().call("climate", "set_hvac_mode", {**e, "hvac_mode": _need(a, "mode")})
         else:
@@ -189,7 +196,18 @@ def knob(k: dict, units: int, ha, notify=_no_notify) -> None:
             raise ActionError(f"{app} is not playing audio right now")
         notify(f"{app.removesuffix('.exe').capitalize()}: {round(level * 100)}%")
     elif t == "ha_brightness":
-        ha().call("light", "turn_on", {"entity_id": _need(k, "entity"), "brightness_step_pct": sign * min(amount, 100)})
+        e = _need(k, "entity")
+        cur, when = _level.get(e, (0, -LEVEL_TRUST_S))
+        if time.monotonic() - when > LEVEL_TRUST_S:
+            st = ha().state(e) or {}
+            b = (st.get("attributes") or {}).get("brightness")
+            cur = (100 if b is None else round(b / 2.55)) if st.get("state") == "on" else 0
+        new = max(0, min(100, cur + sign * amount))
+        if new:
+            ha().call("light", "turn_on", {"entity_id": e, "brightness_pct": new})
+        else:
+            ha().call("light", "turn_off", {"entity_id": e})
+        _level[e] = (new, time.monotonic())
     elif t == "ha_colortemp":
         e = _need(k, "entity")
         at = (ha().state(e) or {}).get("attributes", {})

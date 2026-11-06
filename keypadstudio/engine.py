@@ -17,8 +17,8 @@ from . import actions, config, lighting
 HOLD_S = 0.5      # key held this long = hold action
 DOUBLE_S = 0.3    # second knob press within this = previous profile
 FAST_S, VFAST_S = 0.12, 0.06  # knob tick gaps that count as fast / very fast
+REVERSE_S = 0.25  # an opposite knob click this soon after a click is encoder bounce (raise if it still slips through)
 POLL_S = 2.0      # how often the live light re-reads its Home Assistant entity
-FPS = 20
 
 
 class Engine:
@@ -34,6 +34,7 @@ class Engine:
         self.knob_down = self.knob_hold_fired = False
         self.picking: str | None = None
         self.ticks, self.last_tick = 0, 0.0
+        self.last_dir, self.last_turn = 0, -1.0
         self.paused = self.locked = False
         self.auto_from: str | None = None
         self.last_exe = ""
@@ -43,7 +44,6 @@ class Engine:
         self.live: tuple | None = None  # (profile id, entity, HA state) for the live light
         self.live_error = ""
         self._live_wake = threading.Event()
-        self.dark = False
 
     # ------------------------------------------------------------ config access
 
@@ -61,7 +61,7 @@ class Engine:
     # ------------------------------------------------------------ threads
 
     def start(self) -> None:
-        for target in (self._loop, self._knob_worker, self._auto_switch, self._live_poll, self._render):
+        for target in (self._loop, self._knob_worker, self._auto_switch, self._live_poll):
             threading.Thread(target=target, daemon=True, name=target.__name__).start()
         self.apply_light()
 
@@ -161,6 +161,11 @@ class Engine:
         self._osd(f"{p['name']}  (release to choose)", p["color"], sticky=True)
 
     def _turn(self, direction: int, now: float) -> None:
+        # The encoder often sends one stray opposite click as a detent settles; after dimming a
+        # light to off that click is a "turn on". Drop reversals that follow a click this closely.
+        if direction != self.last_dir and now - self.last_turn < REVERSE_S:
+            return
+        self.last_dir, self.last_turn = direction, now
         if self.knob_down and self.settings.get("longPress", "picker") == "picker":
             self.timers.pop("knobhold", None)
             self.knob_hold_fired = True
@@ -245,14 +250,16 @@ class Engine:
         self.on_change()
 
     def apply_light(self) -> None:
+        """Push the current look to the keypad. Cheap: the device only writes when it changed."""
         if not self.device:
             return
+        from .device import light_config
         b = int(self.settings.get("ledBrightness", 1))
-        self.dark = b <= 0 or (self.locked and self.settings.get("sleepLocked"))
-        if self.dark:
-            self.device.off()
-        else:
-            self.device.custom(b)
+        if b <= 0 or (self.locked and self.settings.get("sleepLocked")):
+            self.device.light(light_config("#000000", "off", 0))
+            return
+        color, mode, speed, level = lighting.firmware(self.look())
+        self.device.light(light_config(color, mode, b, speed, level))
 
     def set_locked(self, locked: bool) -> None:
         self.locked = locked
@@ -290,22 +297,7 @@ class Engine:
                 self.live, self.live_error = (p["id"], ent, self.ha().state(ent)), ""
             except Exception as e:
                 self.live_error = str(e)  # keep the last known state; the look falls back if there is none
-
-    def _render(self) -> None:
-        cur, start = None, time.monotonic()
-        while True:
-            time.sleep(1 / FPS)
-            if self.dark:
-                cur = None
-                continue
-            lk = self.look()
-            target = (*lighting.rgb(lk["color"]), lk["level"])
-            # Glide towards the target so brightness and colour changes fade instead of jumping.
-            cur = target if cur is None else tuple(c + (t - c) * 0.18 for c, t in zip(cur, target))
-            colors = lighting.frame(cur[:3], cur[3], lk["fx"], time.monotonic() - start)
-            knob = tuple(round(c * cur[3]) for c in cur[:3])
-            self.device.custom(int(self.settings.get("ledBrightness", 1)))  # no-op unless reconnected
-            self.device.frame(colors, knob, bool(self.settings.get("flip")))
+            self.apply_light()
 
     def _auto_switch(self) -> None:
         from . import win

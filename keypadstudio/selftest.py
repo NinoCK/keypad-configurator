@@ -91,6 +91,26 @@ def test_turn():
     for t in (10.0, 10.05, 10.15, 11.0):
         e._handle(8, True, t)
     assert e.knobbed == [-1, -3, -2, -1], e.knobbed
+    k.update(accel=False)
+    e.knobbed.clear()
+    for t, i in ((20.0, 8), (20.1, 8), (20.15, 7), (20.3, 8), (21.0, 7), (21.1, 7)):
+        e._handle(i, True, t)
+    assert e.knobbed == [-1, -1, -1, 1, 1], e.knobbed  # stray right click at 20.15 dropped; real reversal at 21.0 kept
+
+
+def test_brightness_knob():
+    from keypadstudio import actions
+    sent = []
+
+    class StaleHA:  # HA still reports the light at 50% however often we change it
+        def state(self, e): return {"state": "on", "attributes": {"brightness": 128}}
+        def call(self, d, s, data): sent.append((s, data.get("brightness_pct")))
+
+    k = {"type": "ha_brightness", "entity": "light.x", "step": 25}
+    actions._level.clear()
+    for units in (-2, -1, 3, 9):
+        actions.knob(k, units, StaleHA)
+    assert sent == [("turn_off", None), ("turn_off", None), ("turn_on", 75), ("turn_on", 100)], sent  # never back on from stale state
 
 
 def test_flip():
@@ -101,7 +121,7 @@ def test_flip():
 
 
 def test_lighting():
-    from keypadstudio.lighting import DEFAULT_AIR, EFFECTS, FLOOR, frame, levels, look
+    from keypadstudio.lighting import DEFAULT_AIR, DEFAULT_CLIMATE, EFFECTS, FLOOR, firmware, look, migrate
     p = {"color": "#102030", "led": "steady"}
     assert look(p, None)["color"] == "#102030"
     ac = {**p, "live": {"type": "climate", "entity": "climate.x"}}
@@ -111,17 +131,37 @@ def test_lighting():
     air = {**p, "live": {"type": "air"}}
     assert [look(air, {"state": v})["color"] for v in ("5", "20", "40", "300")] == [b["color"] for b in DEFAULT_AIR]
     lamp = {**p, "live": {"type": "light", "useColor": False}}
-    assert abs(look(lamp, {"state": "on", "attributes": {"brightness": 128}})["level"] - 0.5) < 0.01
+    assert look(lamp, {"state": "on", "attributes": {"brightness": 128}})["level"] == 0.5
     assert look(lamp, {"state": "off"})["level"] == FLOOR
-    for fx in EFFECTS:
-        for t in (0, 0.37, 1.3, 7.9):
-            ks = levels(fx, t)
-            assert len(ks) == 6 and all(0 <= k <= 1 for k in ks), (fx, t, ks)
-    assert frame((255, 0, 0), 0.5, "steady", 0) == [(128, 0, 0)] * 6
-    # unique look for every AC mode
-    from keypadstudio.lighting import DEFAULT_CLIMATE
-    looks = [(r["color"], r["fx"]) for r in DEFAULT_CLIMATE.values()]
+    assert firmware({"color": "#fff", "fx": "dim", "level": 1})[3] < 0.2
+    # every AC mode looks different: colour, firmware effect or speed
+    looks = [(r["color"], EFFECTS[r["fx"]]) for r in DEFAULT_CLIMATE.values()]
     assert len(set(looks)) == len(looks)
+    old = {"led": "tidal", "live": {"type": "climate", "modes": {"heat": {"color": "#f00", "fx": "flicker"}}}}
+    migrate(old)
+    assert old["led"] == "wave" and old["live"]["modes"] == DEFAULT_CLIMATE
+
+
+def test_device_light():
+    import time
+    from keypadstudio import device
+    writes = []
+
+    class Pad:
+        def set_light(self, c): writes.append(c)
+        def close(self): pass
+
+    real, device.Keypad = device.Keypad, type("K", (), {"open": staticmethod(Pad)})
+    gap, device.MIN_WRITE_GAP = device.MIN_WRITE_GAP, 0.2
+    try:
+        d = device.Device()
+        a, b, c = (device.light_config(x, "steady", 1) for x in ("#ff0000", "#00ff00", "#0000ff"))
+        d.light(a); time.sleep(0.05)
+        d.light(b); d.light(c); time.sleep(0.35)   # inside the gap: only the latest is written
+        d.light(c); time.sleep(0.05)               # unchanged: nothing written
+        assert writes == [a, c], writes
+    finally:
+        device.Keypad, device.MIN_WRITE_GAP = real, gap
 
 
 def test_paused():
@@ -168,6 +208,7 @@ def test_light():
     assert (c.mode, c.brightness, c.color, c.h, c.s, c.v) == (1, 1, 1, 0, 100, 100)
     assert light_config("#4f8cff", "breath", 2).mode == 2
     assert light_config("#4f8cff", "steady", 0).mode == 0  # brightness 0 = off
+    assert light_config("#ff0000", "steady", 1, level=0.5).v == 50
 
 
 if __name__ == "__main__":

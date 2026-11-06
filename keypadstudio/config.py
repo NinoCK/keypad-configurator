@@ -1,4 +1,4 @@
-"""Config file (%APPDATA%\\KeypadStudio\\config.json): defaults, validation, atomic save."""
+"""Config file (%USERPROFILE%\\.keypadstudio\\config.json): defaults, validation, atomic save."""
 
 from __future__ import annotations
 
@@ -7,7 +7,9 @@ import json
 import os
 from pathlib import Path
 
-APP_DIR = Path(os.environ.get("APPDATA", Path.home())) / "KeypadStudio"
+# Not %APPDATA%: when a packaged app (e.g. Claude) starts us, Windows silently redirects AppData
+# writes into that package's private copy, so settings saved there vanish when started normally.
+APP_DIR = Path.home() / ".keypadstudio"
 CONFIG_PATH = APP_DIR / "config.json"
 BACKUP_PATH = APP_DIR / "keymap-backup.json"
 INSTANCE_PATH = APP_DIR / "instance.json"
@@ -74,10 +76,9 @@ def validate(cfg: object) -> dict:
             for slot in ("tap", "hold"):
                 need(isinstance(k.get(slot), dict) and isinstance(k[slot].get("type"), str), "every key needs a press and hold action")
     out = copy.deepcopy(cfg)
-    from .lighting import EFFECTS, OLD_EFFECTS
+    from .lighting import migrate
     for p in out["profiles"]:
-        led = OLD_EFFECTS.get(p.get("led"), p.get("led"))
-        p["led"] = led if led in EFFECTS else "steady"
+        migrate(p)
         if not isinstance(p.get("live"), dict) or p["live"].get("type") not in ("none", "light", "climate", "air"):
             p["live"] = {"type": "none"}
     out["ha"] = {"url": str((cfg.get("ha") or {}).get("url", ""))}  # the token never goes in this file

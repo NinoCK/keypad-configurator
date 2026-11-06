@@ -1,49 +1,56 @@
 """Keypad access through sdcx, serialised on one worker thread.
 
-The pad stays open between operations (frames arrive 20 times a second); any
-failure closes it, so a replugged keypad is reopened on the next operation.
+The pad stays open between operations; any failure closes it, so a replugged
+keypad is reopened on the next operation.
+
+Lighting uses the firmware's own effects (light config [11]). Host-drawn per-key
+frames were tried and dropped: every write stalls the controller for ~4 ms
+(measured) and the LEDs visibly glitch (bright flashes, random colours), so the
+app writes only when the look actually changes and lets the keypad animate.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 
 from sdcx import Keypad, enumerate_devices
-from sdcx.protocol import CMD_SET_KEY_RGB_BULK, LightConfig, u16le
+from sdcx.protocol import LightConfig
 
 from .config import BACKUP_PATH
 
 # Key index on the device -> key it should send. Index 16-18 is the knob.
 APP_KEYMAP = {0: "f13", 1: "f14", 2: "f15", 3: "f16", 4: "f17", 5: "f18", 16: "f19", 17: "f20", 18: "f21"}
-LED_MODES = {"off": 0, "steady": 1, "breath": 2, "press": 3, "tidal": 4, "custom": 5}
-KNOB_LEDS = (16, 17, 18)
-WRITE_GAP = 0.011  # firmware 106 drops writes closer together than ~10 ms (measured; sdcx issue #5)
+LED_MODES = {"off": 0, "steady": 1, "breath": 2, "press": 3, "tidal": 4}
+MIN_WRITE_GAP = 1.0  # ponytail: set_light persists to flash; at most one write per second, latest wins
 ORIGINAL_BACKUP = Path(__file__).resolve().parent.parent / "keymap-backup.json"  # saved before this app existed
 
 
-def light_config(hex_color: str, mode: str, brightness: int) -> LightConfig:
+def light_config(hex_color: str, mode: str, brightness: int, speed: int = 2, level: float = 1.0) -> LightConfig:
     import colorsys
     h = hex_color.lstrip("#")
     r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
     hh, ss, vv = colorsys.rgb_to_hsv(r, g, b)
     m = LED_MODES.get(mode, 1)
-    if brightness <= 0:
-        m = 0
-    return LightConfig(type=1, mode=m, brightness=brightness, speed=2, color=1,
-                       h=round(hh * 360) % 360, s=round(ss * 100), v=round(vv * 100))
+    if brightness <= 0 or m == 0:
+        return LightConfig(type=1, mode=0)
+    return LightConfig(type=1, mode=m, brightness=brightness, speed=speed, color=1,
+                       h=round(hh * 360) % 360, s=round(ss * 100), v=max(1, round(vv * 100 * level)))
 
 
 class Device:
     def __init__(self):
         self._ex = ThreadPoolExecutor(1, thread_name_prefix="keypad")
         self._pad = None
-        self._last_light = None
-        self._table, self._sent_at = b"", 0.0
-        self._frame_busy, self._retry_at = False, 0.0
+        self._lock = threading.Lock()
+        self._want: LightConfig | None = None   # latest requested light
+        self._shown: LightConfig | None = None  # what the keypad has
+        self._queued, self._written_at, self._retry_at = False, 0.0, 0.0
+        self._status, self._status_at = {}, 0.0
 
     def _close(self) -> None:
         if self._pad:
@@ -51,8 +58,7 @@ class Device:
                 self._pad.close()
             except Exception:
                 pass
-        self._pad, self._last_light = None, None
-        self._table = b""
+        self._pad, self._shown = None, None
 
     def _do(self, fn, quiet: bool = False) -> Future:
         def job():
@@ -69,61 +75,36 @@ class Device:
             f.add_done_callback(lambda f: f.exception() and logging.warning("keypad: %s", f.exception()))
         return f
 
-    @staticmethod
-    def status() -> dict:
-        devs = enumerate_devices()
-        return {"connected": bool(devs), "model": devs[0].name if devs else "", "usb": devs[0].usb_id if devs else ""}
+    def status(self) -> dict:
+        # Enumerating asks the keypad for its name over USB; the settings window polls,
+        # so answer from a short cache instead of interrupting the controller every 1.5 s.
+        if time.monotonic() - self._status_at > 10:
+            devs = enumerate_devices()
+            self._status = {"connected": bool(devs), "model": devs[0].name if devs else "", "usb": devs[0].usb_id if devs else ""}
+            self._status_at = time.monotonic()
+        return self._status
 
-    def custom(self, brightness: int) -> None:
-        """Hand the LEDs to the host (mode 5). Writes flash, so only when it actually changes."""
-        def job(pad):
-            cur = pad.get_light()
-            if (cur.mode, cur.brightness) != (5, brightness):
-                pad.set_light(light_config("#ffffff", "custom", brightness))
-                time.sleep(WRITE_GAP)
-            self._last_light = ("custom", brightness)
-            self._table = b""
-        if self._last_light != ("custom", brightness) and time.monotonic() >= self._retry_at:
-            self._last_light = ("custom", brightness)
-            self._do(job, quiet=True)
-
-    def frame(self, colors: list[tuple], knob: tuple, flip: bool) -> None:
-        """Show one frame: colours for key positions 0-5 as the user sees them, plus the knob.
-
-        Dropped when the previous frame is still being written, or for a few
-        seconds after a failure (unplugged), so it never queues up or spams the log.
-        """
-        if self._frame_busy or time.monotonic() < self._retry_at or not isinstance(self._last_light, tuple):
-            return
-        table = bytearray(3 * (max(KNOB_LEDS) + 1))
-        for p, c in enumerate(colors):
-            i = 5 - p if flip else p
-            table[3 * i:3 * i + 3] = bytes(c)
-        for i in KNOB_LEDS:
-            table[3 * i:3 * i + 3] = bytes(knob)
-        table = bytes(table)
-        if table == self._table and time.monotonic() - self._sent_at < 2:
-            return  # unchanged; still resent every 2 s in case the firmware dropped a write
-        self._frame_busy = True
+    def light(self, cfg: LightConfig) -> None:
+        """Ask for a light config. Cheap to call often: writes only on change, at most once per MIN_WRITE_GAP."""
+        with self._lock:
+            self._want = cfg
+            if self._queued or cfg == self._shown or time.monotonic() < self._retry_at:
+                return
+            self._queued = True
 
         def job(pad):
-            # ponytail: bulk per-key write [18] (sdcx's set_key_colors reads first and sends without a gap,
-            # which this firmware drops). 57 bytes = 2 transfers, ~25 ms with the gaps. This is the path sdcx streams
-            # effects on; only the light config [11] (custom()) is documented as persisted to flash.
-            for n in range(0, len(table), 56):
-                chunk = table[n:n + 56]
-                size = 59 if n + 56 < len(table) or len(table) % 56 == 0 else len(table) % 56 + 3
-                pad._send([CMD_SET_KEY_RGB_BULK, size, *u16le(n), 0, 0, 0, *chunk])
-                time.sleep(WRITE_GAP)
-            self._table, self._sent_at = table, time.monotonic()
+            time.sleep(max(0.0, self._written_at + MIN_WRITE_GAP - time.monotonic()))
+            with self._lock:
+                cfg, self._queued = self._want, False
+            if cfg != self._shown:
+                pad.set_light(cfg)
+                self._shown, self._written_at = cfg, time.monotonic()
 
-        self._do(job, quiet=True).add_done_callback(lambda f: setattr(self, "_frame_busy", False))
-
-    def off(self) -> None:
-        if self._last_light == "off":
-            return
-        self._last_light = "off"
-        self._do(lambda pad: pad.off())
+        def failed(f):
+            if f.exception():
+                with self._lock:
+                    self._queued = False
+        self._do(job, quiet=True).add_done_callback(failed)
 
     def program(self) -> Future:
         def job(pad):

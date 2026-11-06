@@ -242,7 +242,7 @@ const KNOB = {
   zoom:            {l:'Zoom (Ctrl + scroll)', s:'Zoom', unit:' steps', max:5},
   keys:            {l:'Custom shortcuts', s:'Shortcuts', unit:' presses', max:5, f:[{k:'cw',l:'Turn right sends',t:'capture'},{k:'ccw',l:'Turn left sends',t:'capture'}]},
 };
-const FX = {steady:'Steady', breathe:'Breathing', wave:'Wave', spin:'Spin', flicker:'Flicker', drops:'Drops', blink:'Blink', dim:'Dim', off:'Off'};
+const FX = {steady:'Steady', breathe:'Breathing, slow', pulse:'Breathing, fast', wave:'Wave, slow', rush:'Wave, fast', press:'Light up on key press', dim:'Dim', off:'Off'};
 const LIVE = {
   none:    {l:'Fixed colour',    d:'Always the profile colour and effect.'},
   light:   {l:'Follow a light',  d:'Keypad brightness (and colour) mirror a light.', domain:'light'},
@@ -250,18 +250,17 @@ const LIVE = {
   air:     {l:'Air quality',     d:'Green to red from a PM2.5 sensor.', domain:'sensor'},
 };
 
-/* LED animation preview: same maths as lighting.levels() in Python. */
+/* LED preview: an on-screen approximation of the keypad firmware's effects (the keypad animates them itself). */
 function levels(fx, t) {
-  const six = v => Array(6).fill(v), R = [0, 1, 2, 5, 4, 3], c = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const six = v => Array(6).fill(v), sine = sp => .12 + .88 * (.5 - .5 * Math.cos(t * sp)), wave = sp => [0,1,2,3,4,5].map(p => .12 + .88 * (.5 + .5 * Math.sin(t * sp - (p % 3) * 1.4)));
   switch (fx) {
     case 'off': return six(0);
     case 'dim': return six(.15);
-    case 'breathe': return six(.12 + .88 * (.5 - .5 * Math.cos(t * 2.1)));
-    case 'wave': return [0,1,2,3,4,5].map(p => .12 + .88 * (.5 + .5 * Math.sin(t * 3 - (p % 3) * 1.4)));
-    case 'spin': { const h = (t * 5) % 6, o = six(0); R.forEach((p, i) => o[p] = Math.max(.08, 1 - (((h - i) % 6) + 6) % 6 * .38)); return o; }
-    case 'flicker': return [0,1,2,3,4,5].map(p => c(.62 + .22 * Math.sin(t * 5.3 + p * 1.9) + .18 * Math.sin(t * 9.1 + p * .7), .25, 1));
-    case 'drops': return [0,1,2,3,4,5].map(p => .08 + .92 * (1 - ((t * (.45 + .11 * p) + p * .618) % 1)) ** 4);
-    case 'blink': return six(t % 1.2 < .6 ? 1 : .1);
+    case 'press': return six(.25);
+    case 'breathe': return six(sine(1.6));
+    case 'pulse': return six(sine(5));
+    case 'wave': return wave(2.2);
+    case 'rush': return wave(6);
     default: return six(1);
   }
 }
@@ -454,7 +453,7 @@ function lightingHTML(p) {
     }).join('');
     detail = `<div class="fields">${field(ent('climate', 'Air conditioner'), 'live')}
       <table><thead><tr><th>Mode</th><th>Colour</th><th>Animation</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-      <p class="note">“Off” uses the profile colour, dimmed. Each mode has its own animation so you can tell them apart at a glance.</p></div>`;
+      <p class="note">“Off” uses the profile colour, dimmed. Each mode has its own colour and animation so you can tell them apart at a glance. The preview on the left is an approximation of the keypad’s own effects.</p></div>`;
   } else if (t === 'air') {
     const bands = live.bands || LT.air;
     const rows = bands.map((b, i) => `<tr><td><input class="ctl" data-bind="live.bands.${i}.name" value="${esc(b.name)}" style="width:110px"></td>
@@ -462,7 +461,7 @@ function lightingHTML(p) {
       <td><input type="color" data-bind="live.bands.${i}.color" value="${esc(b.color)}"></td><td>${fxSelect(`live.bands.${i}.fx`, b.fx)}</td><td>${prevBtn(b.color, b.fx)}</td></tr>`).join('');
     detail = `<div class="fields">${field(ent('sensor', 'PM2.5 sensor'), 'live')}
       <table><thead><tr><th>Level</th><th>PM2.5 (µg/m³)</th><th>Colour</th><th>Animation</th><th></th></tr></thead><tbody>${rows}</tbody></table>
-      <p class="note">Default limits follow the US EPA PM2.5 scale. The keypad blinks red when the air is unhealthy.</p></div>`;
+      <p class="note">Default limits follow the US EPA PM2.5 scale. The keypad pulses red when the air is unhealthy.</p></div>`;
   }
   return `<div class="card"><h2>What the keypad light shows</h2><p class="desc">Applies while this profile is active. The colour is also used for the tray icon and on-screen name.</p><div class="tiles">${tiles}</div></div>
     <div class="card">${detail}${PREVIEW ? `<p class="note" style="margin-top:12px">Previewing on screen only. <a href="#" data-act="stopPreview">Stop preview</a></p>` : ''}</div>`;
@@ -520,7 +519,7 @@ function viewDevice() {
       </div></div>
     <div class="card"><h2>Lights</h2><p class="desc">Each profile sets its own colour and animation on the Lighting tab. This is the overall brightness.</p><div class="fields" style="max-width:420px">
       <label class="f"><span>Brightness: <output>${S.settings.ledBrightness}/4</output></span><input type="range" min="0" max="4" data-gbind="settings.ledBrightness" data-unit="/4" value="${S.settings.ledBrightness}"></label>
-      <p class="note">0 turns the lights off. Animations are drawn by this app, so the keypad shows its last colour while Keypad Studio is closed.</p></div></div>
+      <p class="note">0 turns the lights off. The keypad runs the animations itself; the app only tells it when to change.</p></div></div>
     <div class="card"><h2>One-time setup</h2><p class="desc">The keypad is programmed once so each control sends a key no normal keyboard has. After that everything is handled by this app.</p>
       <table><thead><tr><th>Control</th><th>Sends</th></tr></thead><tbody>
         ${map.map((c, i) => `<tr><td>${c}</td><td><kbd>F${13 + i}</kbd></td></tr>`).join('')}
@@ -560,7 +559,7 @@ function viewHelp() {
       <li>The keypad is programmed once (Keypad page) so each key and knob movement sends one of F13 to F21.</li>
       <li>Keypad Studio runs in the tray, catches those keys before any other program sees them, and looks up the active profile.</li>
       <li>It runs that key’s action: a Home Assistant call, launching a program, changing volume, and so on.</li>
-      <li>The keypad light is drawn by the app: a fixed colour, or live from Home Assistant (a light’s brightness, an AC’s mode, the air quality), checked every two seconds and right after each action.</li>
+      <li>The keypad light is a fixed colour, or live from Home Assistant (a light’s brightness, an AC’s mode, the air quality), checked every two seconds and right after each action. The keypad is told at most once a second, so a fast knob turn settles on the final brightness.</li>
       <li>Right-click the tray icon to switch profile, pause the keypad, open this window or quit.</li>
     </ol></div>`;
 }
@@ -749,6 +748,7 @@ const ACTS = {
 };
 
 /* ---------- startup + live status ---------- */
+let entT = Date.now();
 async function loadEntities() { try { setEntities((await api('/api/ha/entities')).entities); } catch {} }
 async function poll(first) {
   try {
@@ -759,6 +759,9 @@ async function poll(first) {
     else if (!dirty && JSON.stringify(r.config) !== JSON.stringify(S)) {  // changed elsewhere (knob, tray, another window)
       const editing = document.activeElement?.matches('input,textarea,select');
       S = r.config; if (!editing) render(); else renderSide(); return;
+    }
+    if (!first && ST.tokenSet && !Object.keys(ENTS).length && Date.now() - entT > 15000) {  // HA was not reachable at startup: keep retrying
+      entT = Date.now(); loadEntities().then(() => { if (Object.keys(ENTS).length) render(); });
     }
     if (first || conn !== ST.connected) render();
     else {

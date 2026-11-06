@@ -22,30 +22,50 @@ class Osd:
 
     def _run(self) -> None:
         import tkinter as tk
-        from tkinter import filedialog
+        from tkinter import filedialog, font as tkfont
+
+        import ctypes
+        import winreg
+        from ctypes import wintypes as wt
 
         root = tk.Tk()
         root.withdraw()
+        try:  # flyouts follow the *system* theme, not the app theme
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize") as k:
+                light = winreg.QueryValueEx(k, "SystemUsesLightTheme")[0] == 1
+        except OSError:
+            light = False
+        bg, fg, border = ("#f9f9f9", "#1a1a1a", 0xE5E5E5) if light else ("#2c2c2c", "#ffffff", 0x3D3D3D)
+        font = "Segoe UI Variable Display" if "Segoe UI Variable Display" in tkfont.families(root) else "Segoe UI"
+
         pop = tk.Toplevel(root)
         pop.overrideredirect(True)
         pop.attributes("-topmost", True)
-        pop.attributes("-alpha", 0.93)
-        pop.configure(bg="#14161a")
-        swatch = tk.Canvas(pop, width=18, height=18, bg="#14161a", highlightthickness=0)
-        swatch.pack(side="left", padx=(22, 10), pady=18)
-        label = tk.Label(pop, fg="#ffffff", bg="#14161a", font=("Segoe UI", 16, "bold"))
-        label.pack(side="left", padx=(0, 26), pady=18)
+        pop.configure(bg=bg)
+        dot = tk.Label(pop, text="●", bg=bg, font=(font, 16))  # text glyph = antialiased, unlike Canvas ovals
+        dot.pack(side="left", padx=(20, 10), pady=14)
+        label = tk.Label(pop, fg=fg, bg=bg, font=(font, 12, "bold"))
+        label.pack(side="left", padx=(0, 24), pady=14)
+        pop.update_idletasks()
+        hwnd = ctypes.windll.user32.GetParent(pop.winfo_id())
+        dwm = ctypes.windll.dwmapi.DwmSetWindowAttribute
+        # ponytail: no-op on Windows 10 (square corners, no border colour), which is fine
+        dwm(hwnd, 33, ctypes.byref(ctypes.c_int(2)), 4)       # DWMWA_WINDOW_CORNER_PREFERENCE = ROUND
+        dwm(hwnd, 34, ctypes.byref(ctypes.c_uint(border)), 4)  # DWMWA_BORDER_COLOR (COLORREF is BGR; greys are symmetric)
         pop.withdraw()
         hide_id = [None]
 
+        def work_bottom() -> int:
+            r = wt.RECT()
+            ctypes.windll.user32.SystemParametersInfoW(0x30, 0, ctypes.byref(r), 0)  # SPI_GETWORKAREA: above the taskbar
+            return r.bottom or pop.winfo_screenheight()
+
         def show(text, color, sticky, ms):
-            swatch.delete("all")
-            swatch.create_oval(1, 1, 17, 17, fill=color, outline="")
+            dot.configure(fg=color)
             label.configure(text=text)
             pop.update_idletasks()
             w, h = pop.winfo_reqwidth(), pop.winfo_reqheight()
-            sw, sh = pop.winfo_screenwidth(), pop.winfo_screenheight()
-            pop.geometry(f"+{(sw - w) // 2}+{int(sh * 0.72)}")
+            pop.geometry(f"+{(pop.winfo_screenwidth() - w) // 2}+{work_bottom() - h - 24}")
             pop.deiconify()
             pop.lift()
             if hide_id[0]:

@@ -1,27 +1,32 @@
-"""What the keypad LEDs show: a profile's look (colour, effect, level) and the frames that draw it.
+"""What the keypad LEDs show: a profile's look (colour, effect, level).
 
-Frames are drawn on the host and streamed as per-key colours (light mode 5), so
-nothing here writes the keypad's flash. Positions 0-5 are the keys as the user
-sees them (top row 0-2, bottom row 3-5); device.py maps them to key indices,
-which is where the 180 degree rotation is applied.
+Effects are the keypad firmware's own, so the keypad animates them itself and the
+app only writes when the look changes (see device.py for why).
 """
 
 from __future__ import annotations
 
-import math
-
-EFFECTS = ("steady", "breathe", "wave", "spin", "flicker", "drops", "blink", "dim", "off")
-OLD_EFFECTS = {"breath": "breathe", "tidal": "wave", "press": "steady"}  # firmware-era names
+# ponytail: the vendor docs don't say which way speed runs; assumed higher = faster. Swap these if not.
+SLOW, FAST = 1, 4
+# effect -> (firmware mode, speed)
+EFFECTS = {
+    "steady": ("steady", 0), "breathe": ("breath", SLOW), "pulse": ("breath", FAST),
+    "wave": ("tidal", SLOW), "rush": ("tidal", FAST), "press": ("press", 2),
+    "dim": ("steady", 0), "off": ("off", 0),
+}
+DIM = 0.15
+# Names used by earlier versions (firmware-era, then host-drawn).
+OLD_EFFECTS = {"breath": "breathe", "tidal": "wave", "spin": "rush", "flicker": "breathe", "drops": "pulse", "blink": "pulse"}
 
 MODE_NAMES = {"cool": "Cooling", "heat": "Heating", "auto": "Auto", "heat_cool": "Heat/cool",
               "dry": "Drying", "fan_only": "Fan only", "off": "Off"}
 DEFAULT_CLIMATE = {
     "cool": {"color": "#2f8bff", "fx": "wave"},
-    "heat": {"color": "#ff5a1f", "fx": "flicker"},
-    "auto": {"color": "#3ad29f", "fx": "breathe"},
-    "heat_cool": {"color": "#b06bff", "fx": "breathe"},
-    "dry": {"color": "#f5c542", "fx": "drops"},
-    "fan_only": {"color": "#dfe8ff", "fx": "spin"},
+    "heat": {"color": "#ff5a1f", "fx": "breathe"},
+    "auto": {"color": "#3ad29f", "fx": "steady"},
+    "heat_cool": {"color": "#b06bff", "fx": "steady"},
+    "dry": {"color": "#f5c542", "fx": "pulse"},
+    "fan_only": {"color": "#dfe8ff", "fx": "rush"},
     "off": {"color": "", "fx": "dim"},  # "" = the profile's own colour
 }
 # PM2.5 in µg/m³, US EPA breakpoints. `max: None` = everything above.
@@ -29,19 +34,10 @@ DEFAULT_AIR = [
     {"name": "Good", "max": 12, "color": "#3ad29f", "fx": "steady"},
     {"name": "Moderate", "max": 35, "color": "#f5d442", "fx": "steady"},
     {"name": "Poor", "max": 55, "color": "#ff9f1a", "fx": "breathe"},
-    {"name": "Unhealthy", "max": None, "color": "#ff3b30", "fx": "blink"},
+    {"name": "Unhealthy", "max": None, "color": "#ff3b30", "fx": "pulse"},
 ]
 
-RING = (0, 1, 2, 5, 4, 3)  # clockwise around the six keys
-FLOOR = 0.06               # level for "on but nothing to show" (light off), so the pad never looks dead
-
-
-def rgb(hex_color: str) -> tuple[int, int, int]:
-    h = (hex_color or "#ffffff").lstrip("#")
-    try:
-        return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
-    except ValueError:
-        return (255, 255, 255)
+FLOOR = 0.06  # level for "on but nothing to show" (light off), so the pad never looks dead
 
 
 def look(profile: dict, state: dict | None) -> dict:
@@ -58,7 +54,7 @@ def look(profile: dict, state: dict | None) -> dict:
     if kind == "light":
         if s != "on":
             return {"color": color, "fx": "steady", "level": FLOOR, "caption": "Off"}
-        b = (at.get("brightness") or 255) / 255
+        b = round((at.get("brightness") or 255) / 255 * 20) / 20  # 5% steps: fewer keypad writes
         c = at.get("rgb_color")
         if live.get("useColor", True) and c:
             color = "#%02x%02x%02x" % tuple(c)
@@ -85,30 +81,21 @@ def look(profile: dict, state: dict | None) -> dict:
     return base
 
 
-def levels(fx: str, t: float) -> list[float]:
-    """Brightness 0..1 of each key position at time t (seconds). Keep in sync with ui.html."""
-    if fx == "off":
-        return [0.0] * 6
-    if fx == "dim":
-        return [0.15] * 6
-    if fx == "breathe":  # slow sine, about 3 s per breath
-        return [0.12 + 0.88 * (0.5 - 0.5 * math.cos(t * 2.1))] * 6
-    if fx == "wave":     # left to right, like cold air rolling across
-        return [0.12 + 0.88 * (0.5 + 0.5 * math.sin(t * 3.0 - (p % 3) * 1.4)) for p in range(6)]
-    if fx == "spin":     # one bright key running clockwise with a fading tail, like a fan
-        head, out = (t * 5.0) % 6, [0.0] * 6
-        for i, p in enumerate(RING):
-            out[p] = max(0.08, 1 - ((head - i) % 6) * 0.38)
-        return out
-    if fx == "flicker":  # uneven glow, like embers
-        return [min(1, max(0.25, 0.62 + 0.22 * math.sin(t * 5.3 + p * 1.9) + 0.18 * math.sin(t * 9.1 + p * 0.7))) for p in range(6)]
-    if fx == "drops":    # keys light and fade at their own pace, like drips
-        return [0.08 + 0.92 * (1 - ((t * (0.45 + 0.11 * p) + p * 0.618) % 1)) ** 4 for p in range(6)]
-    if fx == "blink":
-        return [1.0 if t % 1.2 < 0.6 else 0.1] * 6
-    return [1.0] * 6
+def migrate(profile: dict) -> None:
+    """Bring effect names saved by older versions up to date (in place)."""
+    fix = lambda fx: (lambda f: f if f in EFFECTS else "steady")(OLD_EFFECTS.get(fx, fx))
+    profile["led"] = fix(profile.get("led"))
+    live = profile.get("live") or {}
+    rows = list((live.get("modes") or {}).values()) + list(live.get("bands") or [])
+    if any(r.get("fx") not in EFFECTS for r in rows):
+        # Saved from the host-drawn defaults, which don't map one to one: take the new defaults.
+        if "modes" in live:
+            live["modes"] = {m: dict(r) for m, r in DEFAULT_CLIMATE.items()}
+        if "bands" in live:
+            live["bands"] = [{**b, "fx": fix(b.get("fx"))} for b in live["bands"]]
 
 
-def frame(color: tuple[float, float, float], level: float, fx: str, t: float) -> list[tuple[int, int, int]]:
-    return [tuple(round(max(0, min(255, c * level * k))) for c in color) for k in levels(fx, t)]
-
+def firmware(lk: dict) -> tuple[str, str, int, float]:
+    """(colour, firmware mode, speed, level) for device.light_config."""
+    mode, speed = EFFECTS.get(lk["fx"], EFFECTS["steady"])
+    return lk["color"], mode, speed, lk["level"] * (DIM if lk["fx"] == "dim" else 1)
