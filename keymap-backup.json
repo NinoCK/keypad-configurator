@@ -1,0 +1,114 @@
+﻿{
+  "ok": true,
+  "layer": 0,
+  "keys": [
+    {
+      "label": "Key 1",
+      "key_index": 0,
+      "name": "kp_4",
+      "type": 32,
+      "wire": [
+        32,
+        0,
+        92,
+        0
+      ]
+    },
+    {
+      "label": "Key 2",
+      "key_index": 1,
+      "name": "kp_5",
+      "type": 32,
+      "wire": [
+        32,
+        0,
+        93,
+        0
+      ]
+    },
+    {
+      "label": "Key 3",
+      "key_index": 2,
+      "name": "kp_6",
+      "type": 32,
+      "wire": [
+        32,
+        0,
+        94,
+        0
+      ]
+    },
+    {
+      "label": "Key 4",
+      "key_index": 3,
+      "name": "macro:0",
+      "type": 96,
+      "wire": [
+        96,
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "label": "Key 5",
+      "key_index": 4,
+      "name": "kp_2",
+      "type": 32,
+      "wire": [
+        32,
+        0,
+        90,
+        0
+      ]
+    },
+    {
+      "label": "Key 6",
+      "key_index": 5,
+      "name": "kp_3",
+      "type": 32,
+      "wire": [
+        32,
+        0,
+        91,
+        0
+      ]
+    },
+    {
+      "label": "Knob press",
+      "key_index": 16,
+      "name": "mute",
+      "type": 48,
+      "wire": [
+        48,
+        226,
+        0,
+        0
+      ]
+    },
+    {
+      "label": "Knob CW",
+      "key_index": 17,
+      "name": "volume_up",
+      "type": 48,
+      "wire": [
+        48,
+        233,
+        0,
+        0
+      ]
+    },
+    {
+      "label": "Knob CCW",
+      "key_index": 18,
+      "name": "volume_down",
+      "type": 48,
+      "wire": [
+        48,
+        234,
+        0,
+        0
+      ]
+    }
+  ]
+}

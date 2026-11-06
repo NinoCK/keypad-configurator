@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Keypad Studio</title>
+<style>
+:root{
+  --bg:#f3f4f6;--panel:#ffffff;--panel2:#eceef2;--text:#15171c;--muted:#5b6270;--line:#dcdfe5;
+  --accent:#3563e9;--accent-text:#fff;--danger:#c93c3c;--ok:#1f8a4c;--idea:#8a5cf6;
+  --body:#1d2025;--cap:#3a3f48;--cap-text:#eceef2;--cap-edge:#4a505a;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#111317;--panel:#191c21;--panel2:#22262d;--text:#e7e9ee;--muted:#9aa1ae;--line:#2b3038;
+    --accent:#6d8dff;--accent-text:#0d1020;--danger:#ff6b6b;--ok:#4cc38a;--idea:#b39bff;
+    --body:#0b0d10;--cap:#2c3038;--cap-text:#e7e9ee;--cap-edge:#3b414b;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111317;--panel:#191c21;--panel2:#22262d;--text:#e7e9ee;--muted:#9aa1ae;--line:#2b3038;
+  --accent:#6d8dff;--accent-text:#0d1020;--danger:#ff6b6b;--ok:#4cc38a;--idea:#b39bff;
+  --body:#0b0d10;--cap:#2c3038;--cap-text:#e7e9ee;--cap-edge:#3b414b;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+.app{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+.side{background:var(--panel);border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:6px}
+.brand{font-weight:650;font-size:15px;padding:2px 8px 10px}
+.dev{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);padding:0 8px 12px;border-bottom:1px solid var(--line);margin-bottom:6px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--ok);flex:none}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button,.plist button.pick{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:7px 10px;border-radius:8px}
+.nav button:hover,.plist button.pick:hover{background:var(--panel2)}
+.nav button[aria-current="true"],.plist li.on button.pick{background:var(--panel2);font-weight:600}
+.nav button:focus-visible,.plist button:focus-visible{outline:2px solid var(--accent)}
+.sec{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:14px 10px 4px}
+.sec small{display:block;text-transform:none;letter-spacing:0;font-size:11px}
+.plist{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.plist li{display:flex;align-items:center}
+.plist button.pick{flex:1;min-width:0}
+.plist .name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.swatch{width:12px;height:12px;border-radius:4px;flex:none;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+.live{font-size:10px;color:var(--ok);margin-left:auto}
+main{padding:22px 26px 40px;min-width:0}
+h1{font-size:20px;margin:0 0 4px}
+h2{font-size:15px;margin:0 0 10px}
+.sub{color:var(--muted);margin:0 0 18px;max-width:70ch}
+.row{display:flex;flex-wrap:wrap;gap:12px;align-items:end}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:16px}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0}
+label.f>span{display:flex;gap:6px;align-items:center}
+.f input[type=text],.f input[type=url],.f input[type=password],.f input:not([type]),.f select,.f textarea{
+  background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;color:var(--text);min-width:0;width:100%}
+.f textarea{min-height:64px;resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:12px}
+.f input[type=color]{width:46px;height:34px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--bg)}
+.f input[type=range]{width:100%;accent-color:var(--accent)}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.check{display:flex;gap:10px;align-items:flex-start;padding:8px 0;cursor:pointer}
+.check input{margin-top:3px;accent-color:var(--accent)}
+.check b{font-weight:550;display:block}
+.check small{color:var(--muted)}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
+.btn.danger{color:var(--danger)}
+.btn.sm{padding:3px 8px;font-size:12px}
+.icon{all:unset;cursor:pointer;color:var(--muted);padding:4px 6px;border-radius:6px;font-size:12px}
+.icon:hover{background:var(--panel2);color:var(--text)}
+.idea{display:inline-block;font-size:10px;font-weight:600;color:var(--idea);border:1px solid currentColor;border-radius:999px;padding:0 6px;line-height:16px;text-transform:none;letter-spacing:0}
+.grid2{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:20px;align-items:start}
+.fields{display:grid;gap:12px}
+.head{display:grid;grid-template-columns:minmax(140px,1.4fr) auto minmax(120px,1fr) minmax(160px,1.6fr) auto;gap:12px;align-items:end}
+
+/* keypad */
+.pad{display:flex;flex-direction:column;align-items:center;gap:10px}
+.pad-body{background:var(--body);border-radius:22px;padding:20px;display:grid;
+  grid-template-columns:repeat(3,76px) 100px;grid-template-rows:76px 76px;gap:12px;align-items:center;justify-items:center}
+.key{all:unset;box-sizing:border-box;cursor:pointer;width:100%;height:100%;border-radius:12px;background:var(--cap);color:var(--cap-text);
+  display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:6px;gap:2px;
+  box-shadow:inset 0 -3px 0 var(--cap-edge),0 0 22px -6px var(--glow);transition:box-shadow .2s}
+.key b{font-size:12px;font-weight:600;line-height:1.15;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.key small{font-size:9px;opacity:.6}
+.key[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:3px}
+.key:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.knob-wrap{grid-column:4;grid-row:1/3;display:flex;flex-direction:column;align-items:center;gap:8px}
+.knob{all:unset;cursor:pointer;width:84px;height:84px;border-radius:50%;position:relative;
+  background:radial-gradient(circle at 40% 35%,#5b616c,#2a2e35 70%);box-shadow:0 4px 10px rgba(0,0,0,.5),0 0 0 3px #15171b,0 0 24px -6px var(--glow)}
+.knob::after{content:"";position:absolute;left:50%;top:8px;width:3px;height:18px;margin-left:-1.5px;border-radius:2px;background:#e9ecf1;
+  transform-origin:50% 34px;transform:rotate(var(--rot,0deg))}
+.knob[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:4px}
+.knob:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
+.turn{display:flex;gap:4px}
+.turn button{all:unset;cursor:pointer;color:#c9ced6;font-size:11px;padding:2px 7px;border-radius:6px;background:#2a2e35}
+.turn button:hover{background:#3a3f48}
+.readout{font-size:12px;color:var(--muted);text-align:center;min-height:18px}
+.meter{height:6px;width:220px;max-width:100%;background:var(--panel2);border-radius:3px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--accent);transition:width .15s}
+.hint{font-size:12px;color:var(--muted);text-align:center;max-width:380px}
+
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:12px}
+.tabs button{all:unset;cursor:pointer;padding:6px 12px;border-bottom:2px solid transparent;color:var(--muted)}
+.tabs button[aria-selected="true"]{border-color:var(--accent);color:var(--text);font-weight:600}
+.note{font-size:12px;color:var(--muted);background:var(--panel2);border-radius:8px;padding:8px 10px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:500;font-size:12px}
+kbd{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:0 5px}
+ol.flow{margin:0;padding-left:20px;display:grid;gap:6px}
+#osd{position:fixed;left:50%;top:40%;transform:translate(-50%,-50%) scale(.96);background:rgba(15,17,21,.92);color:#fff;
+  padding:16px 26px;border-radius:14px;font-size:18px;font-weight:600;display:flex;gap:12px;align-items:center;opacity:0;pointer-events:none;transition:.18s}
+#osd.show{opacity:1;transform:translate(-50%,-50%) scale(1)}
+#toast{position:fixed;right:18px;bottom:18px;max-width:min(420px,calc(100vw - 36px));background:var(--text);color:var(--bg);padding:10px 14px;border-radius:10px;font-size:13px;opacity:0;transform:translateY(8px);transition:.18s;pointer-events:none}
+#toast.show{opacity:1;transform:none}
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--text);padding:18px;width:min(720px,calc(100vw - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px;max-height:60vh;overflow:auto;font-size:12px}
+.topbar{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap}
+
+@media (max-width:900px){
+  .grid2{grid-template-columns:1fr}
+  .head{grid-template-columns:1fr 1fr}
+}
+@media (max-width:700px){
+  .app{grid-template-columns:1fr}
+  .side{border-right:0;border-bottom:1px solid var(--line)}
+  .nav{flex-direction:row;flex-wrap:wrap}
+  main{padding:16px}
+  .pad-body{grid-template-columns:repeat(3,minmax(0,64px)) 84px;grid-template-rows:64px 64px;padding:14px;gap:8px}
+  .knob{width:68px;height:68px}
+  .knob::after{transform-origin:50% 26px;height:14px}
+  .head{grid-template-columns:1fr}
+}
+</style>
+<style>
+.banner{background:var(--panel2);border:1px solid var(--line);border-left:3px solid var(--danger);border-radius:8px;padding:10px 12px;margin-bottom:16px}
+.dot.off{background:var(--danger)}
+.saved{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">Keypad Studio</div>
+    <div class="dev"><span class="dot" id="devDot"></span><span id="devText">Connecting…</span></div>
+    <nav class="nav" id="nav"></nav>
+    <div class="sec">Profiles<small>Knob press cycles in this order</small></div>
+    <ul class="plist" id="plist"></ul>
+    <button class="btn sm" data-act="addProfile" style="margin:6px 10px">+ New profile</button>
+    <div class="saved" id="saved" style="padding:10px"></div>
+  </aside>
+  <main id="main"></main>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<dialog id="dlg"></dialog>
+<div id="lists"></div>
+
+<script>
+/* ---------- API ---------- */
+const KEY = new URLSearchParams(location.hash.slice(1)).get('k') || sessionStorage.getItem('k') || '';
+try { sessionStorage.setItem('k', KEY); history.replaceState(null, '', '/'); } catch {}
+addEventListener('hashchange', () => location.reload());  // new key from the tray: start fresh
+async function api(path, method = 'GET', body) {
+  const r = await fetch(path, {method, headers: {'X-Key': KEY, 'Content-Type': 'application/json'}, body: body === undefined ? undefined : JSON.stringify(body)});
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || r.statusText);
+  return data;
+}
+
+/* ---------- action catalogue ---------- */
+const ent = (domain = 'any', l = 'Entity') => ({k:'entity', l, t:'entity', domain});
+const ACTIONS = {
+  none:          {g:'General',        l:'Do nothing', f:[]},
+  ha_light:      {g:'Home Assistant', l:'Set light colour & brightness', f:[ent('light','Light'), {k:'color',l:'Colour',t:'color',d:'#ffb46b'}, {k:'brightness',l:'Brightness',t:'range',min:1,max:100,d:80,unit:'%'}]},
+  ha_white:      {g:'Home Assistant', l:'Set light to white', f:[ent('light','Light'), {k:'kelvin',l:'Warmth (2700 = warm, 6500 = cool)',t:'range',min:2000,max:6500,d:4000,unit:' K'}, {k:'brightness',l:'Brightness',t:'range',min:1,max:100,d:80,unit:'%'}]},
+  ha_toggle:     {g:'Home Assistant', l:'Toggle on/off', f:[ent()]},
+  ha_scene:      {g:'Home Assistant', l:'Activate scene', f:[ent('scene','Scene')]},
+  ha_automation: {g:'Home Assistant', l:'Trigger automation', f:[ent('automation','Automation')]},
+  ha_script:     {g:'Home Assistant', l:'Run script', f:[ent('script','Script')]},
+  ha_service:    {g:'Home Assistant', l:'Call any service (advanced)', f:[{k:'service',l:'Service',t:'text',ph:'light.turn_on'}, ent(), {k:'data',l:'Extra data (JSON)',t:'textarea',ph:'{"transition": 2}'}]},
+  launch:        {g:'PC', l:'Launch application', f:[{k:'path',l:'Program, shortcut or file',t:'file',ph:'C:\\Program Files\\App\\app.exe'}, {k:'args',l:'Arguments (optional)',t:'text'}]},
+  url:           {g:'PC', l:'Open website', f:[{k:'url',l:'Address',t:'text',ph:'https://'}]},
+  hotkey:        {g:'PC', l:'Send keyboard shortcut', f:[{k:'keys',l:'Shortcut (click, then press keys)',t:'capture'}]},
+  text:          {g:'PC', l:'Type text', f:[{k:'text',l:'Text',t:'textarea'}]},
+  media:         {g:'PC', l:'Media control', f:[{k:'cmd',l:'Command',t:'select',d:'play_pause',opts:{play_pause:'Play / pause',next:'Next track',prev:'Previous track',mute:'Mute speakers',mic:'Mute / unmute microphone'}}]},
+  audio_out:     {g:'PC', l:'Switch audio output', f:[{k:'device',l:'Cycle between these outputs (one per line, part of the name is enough)',t:'textarea',ph:'Realtek\nLG ULTRAWIDE'}], note:'outputs'},
+  command:       {g:'PC', l:'Run PowerShell command', f:[{k:'cmd',l:'Command',t:'textarea',ph:'Start-Process notepad'}, {k:'hidden',l:'Run without a window',t:'bool',d:true}]},
+  profile:       {g:'Keypad', l:'Go to profile', f:[{k:'profile',l:'Profile',t:'profile'}]},
+  timer:         {g:'Keypad', l:'Focus timer (press again to cancel)', f:[{k:'minutes',l:'Minutes',t:'range',min:5,max:90,d:25,unit:' min'}]},
+};
+const KNOB = {
+  volume:          {l:'System volume', unit:'%', max:20},
+  app_volume:      {l:'One app’s volume', unit:'%', max:20, f:[{k:'app',l:'Program (as in Task Manager)',t:'text',ph:'Spotify.exe'}], note:'apps'},
+  ha_brightness:   {l:'Light brightness', unit:'%', max:25, f:[ent('light','Light')]},
+  ha_colortemp:    {l:'Light warmth (colour temperature)', unit:'%', max:25, f:[ent('light','Light')]},
+  ha_media_volume: {l:'Speaker volume (Home Assistant)', unit:'%', max:20, f:[ent('media_player','Speaker')]},
+  scroll:          {l:'Mouse scroll', unit:' lines', max:10},
+  zoom:            {l:'Zoom (Ctrl + scroll)', unit:' steps', max:5},
+  keys:            {l:'Custom shortcuts', unit:' presses', max:5, f:[{k:'cw',l:'Turn right sends',t:'capture'},{k:'ccw',l:'Turn left sends',t:'capture'}]},
+};
+const LED_MODES = {steady:'Steady', breath:'Breathing', press:'Light on press', tidal:'Wave', off:'Off'};
+
+/* ---------- state ---------- */
+let AUDIO = {outputs: [], apps: []};
+const audioNote = kind => !kind ? '' : `<p class="note">${kind === 'outputs' ? 'Your outputs' : 'Playing sound now'}: ${(AUDIO[kind] || []).map(esc).join(' · ') || (kind === 'apps' ? 'nothing; start the program, then reopen this' : 'none found')}</p>`;
+let S = null, ST = {}, view = 'profiles', sel = {kind:'key', i:0}, tab = 'tap', dirty = false;
+const uid = () => Math.random().toString(36).slice(2, 8);
+const newKey = () => ({label:'', tap:{type:'none'}, hold:{type:'none'}});
+const P = () => S.profiles.find(p => p.id === S.active) || S.profiles[0];
+
+let saveT;
+function save() {
+  dirty = true; $('#saved').textContent = 'Saving…';
+  clearTimeout(saveT);
+  saveT = setTimeout(async () => {
+    try { await api('/api/config', 'PUT', S); dirty = false; $('#saved').textContent = 'All changes saved'; }
+    catch (e) { $('#saved').textContent = 'Not saved: ' + e.message; }
+  }, 400);
+}
+
+/* ---------- helpers ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const getPath = (o, p) => p.split('.').reduce((a, k) => a?.[k], o);
+const setPath = (o, p, v) => { const ks = p.split('.'), last = ks.pop(); ks.reduce((a, k) => a[k], o)[last] = v; };
+let toastT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3500); };
+async function busy(btn, fn) { btn.disabled = true; try { await fn(); } catch (e) { toast(e.message); } finally { btn.disabled = false; } }
+
+function setEntities(list) {
+  const by = {any: list};
+  for (const e of list) (by[e.split('.')[0]] ||= []).push(e);
+  $('#lists').innerHTML = ['any','light','scene','automation','script','media_player'].map(d =>
+    `<datalist id="ents-${d}">${(by[d] || []).map(e => `<option value="${esc(e)}">`).join('')}</datalist>`).join('');
+}
+
+function field(f, base) {
+  const path = `${base}.${f.k}`, v = getPath(P(), path) ?? f.d ?? '', b = `data-bind="${path}"`;
+  const lab = `<span>${esc(f.l)}</span>`;
+  switch (f.t) {
+    case 'color':   return `<label class="f">${lab}<input type="color" ${b} value="${esc(v)}"></label>`;
+    case 'range':   return `<label class="f"><span>${esc(f.l)}: <output>${esc(v)}${f.unit||''}</output></span><input type="range" ${b} min="${f.min}" max="${f.max}" value="${esc(v)}" data-unit="${f.unit||''}"></label>`;
+    case 'bool':    return `<label class="check"><input type="checkbox" ${b} ${v ? 'checked' : ''}><b>${esc(f.l)}</b></label>`;
+    case 'textarea':return `<label class="f">${lab}<textarea ${b} placeholder="${esc(f.ph||'')}">${esc(v)}</textarea></label>`;
+    case 'select':  return `<label class="f">${lab}<select ${b}>${Object.entries(f.opts).map(([k, t]) => `<option value="${k}" ${k==v?'selected':''}>${esc(t)}</option>`).join('')}</select></label>`;
+    case 'profile': return `<label class="f">${lab}<select ${b}><option value="">Choose…</option>${S.profiles.map(p => `<option value="${p.id}" ${p.id===v?'selected':''}>${esc(p.name)}</option>`).join('')}</select></label>`;
+    case 'entity':  return `<label class="f">${lab}<input ${b} list="ents-${f.domain}" value="${esc(v)}" placeholder="${f.domain==='any'?'light.desk_lamp':f.domain+'.…'}" spellcheck="false"></label>`;
+    case 'capture': return `<label class="f">${lab}<input ${b} data-capture value="${esc(v)}" placeholder="Click here, then press the shortcut" readonly></label>`;
+    case 'file':    return `<label class="f">${lab}<span><input ${b} value="${esc(v)}" placeholder="${esc(f.ph)}" spellcheck="false"><button class="btn sm" data-act="browse" data-for="${path}">Browse…</button></span></label>`;
+    default:        return `<label class="f">${lab}<input ${b} value="${esc(v)}" placeholder="${esc(f.ph||'')}" spellcheck="false"></label>`;
+  }
+}
+const actionSelect = (path, cur) => {
+  const groups = {};
+  for (const [k, a] of Object.entries(ACTIONS)) (groups[a.g] ||= []).push(`<option value="${k}" ${k===cur?'selected':''}>${esc(a.l)}</option>`);
+  return `<label class="f"><span>Action</span><select data-bind="${path}" data-retype>${Object.entries(groups).map(([g, o]) => `<optgroup label="${g}">${o.join('')}</optgroup>`).join('')}</select></label>`;
+};
+const summary = a => {
+  if (!a || a.type === 'none') return '';
+  if (a.entity) return a.entity.split('.')[1]?.replace(/_/g, ' ') || '';
+  if (a.type === 'launch') return (a.path || '').split(/[\\/]/).pop();
+  if (a.type === 'hotkey') return a.keys || '';
+  if (a.type === 'media') return ACTIONS.media.f[0].opts[a.cmd] || '';
+  return ACTIONS[a.type]?.l || '';
+};
+
+/* ---------- views ---------- */
+const NAV = [['profiles','Profiles'],['ha','Home Assistant'],['device','Keypad'],['settings','Settings'],['spec','How it works']];
+function renderSide() {
+  $('#nav').innerHTML = NAV.map(([k, l]) => `<button data-view="${k}" aria-current="${view===k}">${l}</button>`).join('');
+  $('#plist').innerHTML = S.profiles.map((p, i) => `<li class="${p.id===S.active?'on':''}">
+    <button class="pick" data-pick="${p.id}"><span class="swatch" style="background:${esc(p.color)}"></span><span class="name">${esc(p.name)}</span>${p.id===S.active?'<span class="live">active</span>':''}</button>
+    <button class="icon" data-move="${i},-1" aria-label="Move ${esc(p.name)} up" ${i?'':'disabled'}>▲</button>
+    <button class="icon" data-move="${i},1" aria-label="Move ${esc(p.name)} down" ${i<S.profiles.length-1?'':'disabled'}>▼</button></li>`).join('');
+  $('#devDot').className = 'dot' + (ST.connected ? '' : ' off');
+  $('#devText').innerHTML = ST.connected ? `${esc(ST.model)} connected<br>${esc(ST.usb)}${ST.paused ? ' · paused' : ''}` : 'Keypad not found<br>Plug it in by USB';
+}
+
+function padHTML(p) {
+  return `<div class="pad" style="--glow:${p.led==='off'?'transparent':esc(p.color)}">
+    <div class="pad-body">
+      ${p.keys.map((kk, i) => `<button class="key" data-key="${i}" aria-pressed="${sel.kind==='key'&&sel.i===i}" style="grid-column:${i%3+1};grid-row:${(i/3|0)+1}">
+        <b>${esc(kk.label || summary(kk.tap) || 'Key '+(i+1))}</b><small>${kk.hold.type!=='none'?'+ hold':''}</small></button>`).join('')}
+      <div class="knob-wrap"><button class="knob" data-knob aria-pressed="${sel.kind==='knob'}" aria-label="Edit knob"></button></div>
+    </div>
+    <p class="hint">Click a key or the knob to edit it. Changes save automatically and work on the keypad straight away.</p>
+  </div>`;
+}
+
+function inspectorHTML(p) {
+  if (sel.kind === 'knob') {
+    const k = KNOB[p.knob.type] || KNOB.volume;
+    return `<div class="card"><h2>Knob</h2><div class="fields">
+      <label class="f"><span>Turning controls</span><select data-bind="knob.type" data-retype>${Object.entries(KNOB).map(([v, o]) => `<option value="${v}" ${v===p.knob.type?'selected':''}>${esc(o.l)}</option>`).join('')}</select></label>
+      ${(k.f||[]).map(f => field(f, 'knob')).join('')}
+      ${audioNote(k.note)}
+      ${field({k:'step', l:'Strength (change per step)', t:'range', min:1, max:k.max, unit:k.unit}, 'knob')}
+      ${field({k:'sens', l:'Sensitivity', t:'select', opts:{1:'Every click of the knob', 2:'Every 2 clicks', 3:'Every 3 clicks'}}, 'knob')}
+      ${field({k:'accel', l:'Speed up when turned fast', t:'bool'}, 'knob')}
+      ${field({k:'invert', l:'Reverse direction', t:'bool'}, 'knob')}
+      <p class="note">Pressing the knob switches to the next profile in every profile. Change press behaviour in <a href="#" data-view="settings">Settings</a>.</p>
+    </div></div>`;
+  }
+  const kk = p.keys[sel.i], a = kk[tab], base = `keys.${sel.i}.${tab}`;
+  return `<div class="card"><h2>Key ${sel.i + 1}</h2><div class="fields">
+    <label class="f"><span>Label</span><input data-bind="keys.${sel.i}.label" value="${esc(kk.label)}" placeholder="${esc(summary(kk.tap) || 'Name shown here')}"></label>
+    <div class="tabs" role="tablist"><button role="tab" data-tab="tap" aria-selected="${tab==='tap'}">Press</button><button role="tab" data-tab="hold" aria-selected="${tab==='hold'}">Hold</button></div>
+    ${actionSelect(base + '.type', a.type)}
+    ${(ACTIONS[a.type] || ACTIONS.none).f.map(f => field(f, base)).join('')}
+    ${audioNote(ACTIONS[a.type]?.note)}
+    ${a.type!=='none' ? `<div><button class="btn" data-act="test">Run now</button></div>` : ''}
+    ${tab==='hold' ? '<p class="note">Hold = keep the key down for half a second. With a hold action set, the press action runs when you let go instead of instantly.</p>' : ''}
+  </div></div>`;
+}
+
+const banner = () => !ST.connected ? `<div class="banner">The keypad is not connected. You can still edit profiles; they apply when it is plugged in.</div>` : '';
+
+function viewProfiles() {
+  const p = P();
+  $('#main').innerHTML = banner() + `
+    <div class="card"><div class="head">
+      <label class="f"><span>Profile name</span><input data-bind="name" value="${esc(p.name)}"></label>
+      <label class="f"><span>Keypad light</span><input type="color" data-bind="color" value="${esc(p.color)}"></label>
+      <label class="f"><span>Light effect</span><select data-bind="led">${Object.entries(LED_MODES).map(([k, l]) => `<option value="${k}" ${k===p.led?'selected':''}>${l}</option>`).join('')}</select></label>
+      <label class="f"><span>Switch to this when using</span><input data-bind="apps" value="${esc(p.apps)}" placeholder="e.g. Photoshop.exe, Spotify.exe" spellcheck="false"></label>
+      <button class="btn danger" data-act="delProfile" ${S.profiles.length<2?'disabled':''}>Delete</button>
+    </div>${p.apps && !S.settings.autoSwitch ? '<p class="note" style="margin:10px 0 0">Automatic switching is off. Turn it on in <a href="#" data-view="settings">Settings</a>.</p>' : ''}</div>
+    <div class="grid2"><div>${padHTML(p)}</div><div id="insp">${inspectorHTML(p)}</div></div>`;
+}
+
+function viewHA() {
+  $('#main').innerHTML = `<h1>Home Assistant</h1><p class="sub">Keypad Studio talks to Home Assistant directly over its API.</p>
+    <div class="card"><div class="fields" style="max-width:520px">
+      <label class="f"><span>Home Assistant address</span><input type="url" data-gbind="ha.url" value="${esc(S.ha.url)}" spellcheck="false"></label>
+      <label class="f"><span>Long-lived access token</span><span><input type="password" id="tok" placeholder="${ST.tokenSet ? 'Saved. Paste a new one to replace it' : 'Paste token'}" autocomplete="off"><button class="btn" data-act="saveToken">Save</button>${ST.tokenSet ? '<button class="btn danger" data-act="removeToken">Remove</button>' : ''}</span></label>
+      <p class="readout">${ST.tokenSet ? 'A token is saved.' : 'No token saved yet.'}</p>
+      <p class="note">In Home Assistant: click your name (bottom left) → Security → Long-lived access tokens → Create token. It is stored in Windows Credential Manager, not in the config file.</p>
+      <div class="row"><button class="btn primary" data-act="testHA">Test connection</button><span class="readout" id="haStatus"></span></div>
+    </div></div>`;
+}
+
+function viewDevice() {
+  const map = ['Key 1','Key 2','Key 3','Key 4','Key 5','Key 6','Knob press','Knob turn right','Knob turn left'];
+  $('#main').innerHTML = `<h1>Keypad</h1><p class="sub">The keypad is programmed once. After that, everything on the Profiles page is handled by this app.</p>${banner()}
+    <div class="card"><h2>One-time setup</h2>
+      <table><thead><tr><th>Control</th><th>Sends</th></tr></thead><tbody>
+        ${map.map((c, i) => `<tr><td>${c}</td><td><kbd>F${13 + i}</kbd></td></tr>`).join('')}
+      </tbody></table>
+      <p class="note" style="margin-top:12px">F13 to F21 exist on no normal keyboard, so they never clash with your typing. After programming, the keypad only does something while Keypad Studio is running. The original layout is backed up first.</p>
+      <div class="row" style="margin-top:10px"><button class="btn primary" data-act="program" ${ST.connected?'':'disabled'}>Program keypad</button><button class="btn" data-act="restore" ${ST.connected?'':'disabled'}>Restore original keys</button></div>
+    </div>
+    <div class="card"><h2>Lights</h2><div class="fields" style="max-width:420px">
+      <label class="f"><span>Brightness: <output>${S.settings.ledBrightness}/4</output></span><input type="range" min="0" max="4" data-gbind="settings.ledBrightness" data-unit="/4" value="${S.settings.ledBrightness}"></label>
+      <p class="note">Each profile sets its own colour and effect; this is the overall brightness. 0 turns the lights off.</p></div></div>`;
+}
+
+const SETTINGS = [
+  ['startup', 'Start with Windows', 'Runs quietly in the system tray after you sign in.'],
+  ['osd', 'Show profile name on screen when switching', ''],
+  ['dblPrev', 'Double-press knob: previous profile', 'Makes single presses about 0.3 s slower, because the app waits to see if a second press follows.'],
+  ['autoSwitch', 'Switch profile automatically by app', 'Uses the "Switch to this when using" list on each profile, and switches back when you leave that app.'],
+  ['sleepLocked', 'Turn keypad lights off when the PC is locked', ''],
+];
+function viewSettings() {
+  $('#main').innerHTML = `<h1>Settings</h1><p class="sub">How the app behaves in the background.</p>
+    <div class="card">${SETTINGS.map(([k, l, d]) => `<label class="check"><input type="checkbox" data-gbind="settings.${k}" ${S.settings[k]?'checked':''}><span><b>${l}</b><small>${d}</small></span></label>`).join('')}
+      <label class="f" style="max-width:360px;margin-top:8px"><span>Hold knob down</span><select data-gbind="settings.longPress">
+        ${Object.entries({none:'Nothing', picker:'Pick a profile: hold, turn, release', mute:'Mute speakers', mic:'Mute / unmute microphone'}).map(([k, l]) => `<option value="${k}" ${S.settings.longPress===k?'selected':''}>${l}</option>`).join('')}
+      </select></label>
+    </div>
+    <div class="card"><h2>Files</h2><p class="note">Config and log are in <kbd>${esc((ST.logPath||'').replace(/[^\\]+$/, ''))}</kbd></p>
+      <div class="row" style="margin-top:10px"><button class="btn" data-act="export">Show config file</button></div></div>`;
+}
+
+function viewSpec() {
+  $('#main').innerHTML = `<h1>How it works</h1><p class="sub">What happens between a key press and a light turning on.</p>
+    <div class="card"><ol class="flow">
+      <li>The <b>keypad</b> is programmed once (Keypad page) so each key and knob movement sends one of F13 to F21.</li>
+      <li><b>Keypad Studio</b> runs in the tray, catches those keys before any other program sees them, and looks up the <b>active profile</b>.</li>
+      <li>It runs that key's action: a Home Assistant API call, launching a program, changing volume, and so on.</li>
+      <li><b>Knob press</b> moves to the next profile. The keypad light and tray icon change to that profile's colour and its name appears on screen.</li>
+      <li>Right-click the tray icon to switch profile, pause the keypad, open this window or quit.</li>
+    </ol></div>`;
+}
+
+function render() {
+  renderSide();
+  ({profiles:viewProfiles, ha:viewHA, device:viewDevice, settings:viewSettings, spec:viewSpec})[view]();
+}
+const refreshPad = () => { const pad = document.querySelector('.pad'); if (pad) pad.outerHTML = padHTML(P()); renderSide(); save(); };
+
+/* ---------- events ---------- */
+document.addEventListener('click', e => {
+  const t = e.target.closest('[data-view],[data-pick],[data-move],[data-key],[data-knob],[data-tab],[data-act]');
+  if (!t) return;
+  const d = t.dataset;
+  if (d.view) { e.preventDefault(); view = d.view; render(); }
+  else if (d.pick) { view = 'profiles'; S.active = d.pick; render(); api('/api/activate', 'POST', {id: d.pick}).catch(err => toast(err.message)); }
+  else if (d.move) { const [i, dir] = d.move.split(',').map(Number), a = S.profiles; [a[i], a[i+dir]] = [a[i+dir], a[i]]; render(); save(); }
+  else if (d.key) { sel = {kind:'key', i:+d.key}; tab = 'tap'; render(); }
+  else if ('knob' in d) { sel = {kind:'knob'}; render(); }
+  else if (d.tab) { tab = d.tab; render(); }
+  else if (d.act) ACTS[d.act]?.(t);
+});
+
+const bindValue = el => el.type === 'checkbox' ? el.checked : el.type === 'range' ? +el.value : el.dataset.bind?.endsWith('.sens') ? +el.value : el.value;
+document.addEventListener('input', e => {
+  const el = e.target;
+  if (el.type === 'range') { const o = el.closest('label')?.querySelector('output'); if (o) o.textContent = el.value + (el.dataset.unit || ''); }
+  if (el.dataset.bind && !('retype' in el.dataset)) { setPath(P(), el.dataset.bind, bindValue(el)); refreshPad(); }
+  if (el.dataset.gbind) { setPath(S, el.dataset.gbind, bindValue(el)); save(); }
+});
+document.addEventListener('change', e => {
+  const el = e.target;
+  if (!('retype' in el.dataset)) return;
+  const path = el.dataset.bind.replace(/\.type$/, ''), isKnob = path === 'knob', def = isKnob ? KNOB : ACTIONS;
+  const old = getPath(P(), path), next = {type: el.value};
+  if (old.entity) next.entity = old.entity;
+  if (isKnob) Object.assign(next, {step: Math.min(old.step || 5, KNOB[el.value].max), sens: old.sens || 1, accel: !!old.accel, invert: !!old.invert});
+  for (const f of (def[el.value].f || [])) if (f.d !== undefined && next[f.k] === undefined) next[f.k] = f.d;
+  setPath(P(), path, next); render(); save();
+});
+document.addEventListener('keydown', e => {
+  const el = e.target;
+  if (!('capture' in (el.dataset || {})) || e.key === 'Tab') return;
+  e.preventDefault();
+  if (['Control','Shift','Alt','Meta'].includes(e.key)) return;
+  if (e.key === 'Backspace' || e.key === 'Delete') el.value = '';
+  else {
+    const k = e.key === ' ' ? 'Space' : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+    el.value = [e.ctrlKey&&'Ctrl', e.altKey&&'Alt', e.shiftKey&&'Shift', e.metaKey&&'Win', k].filter(Boolean).join('+');
+  }
+  setPath(P(), el.dataset.bind, el.value); refreshPad();
+});
+
+const ACTS = {
+  addProfile() {
+    const id = uid();
+    S.profiles.push({id, name:'New profile', color:'#3ad29f', led:'steady', apps:'',
+      knob:{type:'volume', step:2, sens:1, accel:true, invert:false}, keys:Array.from({length:6}, newKey)});
+    S.active = id; view = 'profiles'; sel = {kind:'key', i:0}; render(); save();
+    api('/api/activate', 'POST', {id}).catch(() => {});
+  },
+  delProfile() {
+    const p = P(); if (!confirm(`Delete profile "${p.name}"?`)) return;
+    S.profiles = S.profiles.filter(x => x.id !== p.id); S.active = S.profiles[0].id; render(); save();
+  },
+  test(btn) { busy(btn, async () => { clearTimeout(saveT); await api('/api/config', 'PUT', S); await api('/api/run', 'POST', {profile: P().id, key: sel.i, slot: tab}); toast('Done.'); }); },
+  browse(btn) { busy(btn, async () => { const r = await api('/api/browse', 'POST'); if (r.path) { setPath(P(), btn.dataset.for, r.path.replace(/\//g, '\\')); render(); save(); } }); },
+  saveToken(btn) { busy(btn, async () => { await api('/api/token', 'POST', {token: $('#tok').value}); ST.tokenSet = true; viewHA(); toast('Token saved.'); }); },
+  removeToken(btn) { if (confirm('Remove the saved Home Assistant token?')) busy(btn, async () => { await api('/api/token', 'POST', {remove: true}); ST.tokenSet = false; viewHA(); toast('Token removed.'); }); },
+  testHA(btn) { busy(btn, async () => {
+    clearTimeout(saveT); await api('/api/config', 'PUT', S);
+    $('#haStatus').textContent = 'Testing…';
+    try { const r = await api('/api/ha/test', 'POST'); $('#haStatus').textContent = r.message; setEntities(r.entities); }
+    catch (e) { $('#haStatus').textContent = e.message; }
+  }); },
+  program(btn) { if (confirm('Program the keypad to send F13–F21? Its keys will only work while Keypad Studio runs. The original layout is backed up first.')) busy(btn, async () => toast((await api('/api/program', 'POST')).message)); },
+  restore(btn) { if (confirm('Put back the keypad\u2019s original keys (numpad 4, 5, 6, macro, 2, 3 and the volume knob)?')) busy(btn, async () => toast((await api('/api/restore', 'POST')).message)); },
+  export() {
+    const d = $('#dlg');
+    d.innerHTML = `<h2>config.json</h2><pre>${esc(JSON.stringify(S, null, 2))}</pre><form method="dialog" class="row"><button class="btn primary">Close</button></form>`;
+    d.showModal();
+  },
+};
+
+/* ---------- startup + live status ---------- */
+async function poll(first) {
+  try {
+    const r = await api('/api/state');
+    const was = S?.active, conn = ST.connected;
+    ST = r.status;
+    if (first) S = r.config;
+    else if (!dirty && JSON.stringify(r.config) !== JSON.stringify(S)) {  // changed elsewhere (knob, tray, another window)
+      const editing = document.activeElement?.matches('input,textarea,select');
+      S = r.config; if (view === 'profiles' && !editing) render(); else renderSide(); return;
+    }
+    if (first || conn !== ST.connected) render(); else renderSide();
+  } catch (e) {
+    if (!first && /key/.test(e.message)) {  // app restarted with a new key: this tab is stale
+      clearInterval(pollT);
+      $('#main').innerHTML = '<div class="banner">Keypad Studio was restarted. Close this tab and open settings from the tray icon.</div>';
+      return;
+    }
+    if (first) { $('#main').innerHTML = `<div class="banner">${esc(e.message)}. Open this window from the Keypad Studio tray icon.</div>`; return; }
+  }
+  if (first) api('/api/audio').then(r => { AUDIO = r; }).catch(() => {});
+  if (first) api('/api/ha/entities').then(r => setEntities(r.entities)).catch(() => {});
+}
+setEntities([]);
+let pollT;
+poll(true).then(() => { pollT = setInterval(poll, 1500); });
+</script>
+</body>
+</html>

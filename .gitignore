@@ -1,0 +1,5 @@
+__pycache__/
+# Separate git repo (fork of parsaj-dev/sdcx-keypad, branch windows-port)
+sdcx-keypad/
+# Abandoned attempt: patched ch57x-keyboard-tool, does not speak this keypad's protocol
+src/
