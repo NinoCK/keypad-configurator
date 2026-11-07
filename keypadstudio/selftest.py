@@ -53,6 +53,40 @@ def test_keys():
     assert e.ran == ["tap1", "hold1"], e.ran
 
 
+def test_double():
+    e = FakeEngine()
+    k = e.profile()["keys"][2]
+    k["tap"]["label"], k["double"] = "tap2", {"type": "media", "label": "dbl2"}
+    press(e, 2, 0.0, 0.05); assert e.ran == []  # waiting for a second press
+    e._fire(0.4); assert e.ran == ["tap2"], e.ran
+    press(e, 2, 1.0, 1.05); press(e, 2, 1.15, 1.2)
+    e._fire(2.0); assert e.ran == ["tap2", "dbl2"], e.ran  # no stray tap after the double
+    k["hold"] = {"type": "media", "label": "hold2"}  # all three on one key
+    press(e, 2, 3.0, 3.7); e._fire(4.5)
+    assert e.ran[-1] == "hold2" and len(e.ran) == 3, e.ran
+
+
+def test_macro_and_event():
+    from keypadstudio import actions
+    sent = []
+
+    class HA:
+        def call(self, d, s, data): sent.append(f"{d}.{s}")
+        def fire(self, ev, data): sent.append((ev, data))
+
+    actions.run({"type": "macro", "steps": [
+        {"type": "ha_toggle", "entity": "light.a"},
+        {"type": "ha_event", "event": "keypad_studio", "data": '{"key": 1}', "wait": 10},
+        {"type": "none"}]}, HA, None)
+    assert sent == ["homeassistant.toggle", ("keypad_studio", {"key": 1})], sent
+    for bad in ({"type": "macro", "steps": [{"type": "macro"}]}, {"type": "ha_event", "event": "x", "data": "[1]"}):
+        try:
+            actions.run(bad, HA, None); raise AssertionError(bad)
+        except actions.ActionError:
+            pass
+    assert config.validate(config.DEFAULT)["profiles"][0]["keys"][0]["double"] == {"type": "none"}
+
+
 def test_knob_press():
     e = FakeEngine(longPress="none")
     press(e, 6, 0, 0.1)

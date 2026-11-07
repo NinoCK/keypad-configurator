@@ -18,7 +18,7 @@ TOKEN_TARGET = "KeypadStudio/HomeAssistant"
 
 
 def _key(label, tap):
-    return {"label": label, "tap": tap, "hold": {"type": "none"}}
+    return {"label": label, "tap": tap, "hold": {"type": "none"}, "double": {"type": "none"}}
 
 
 DEFAULT = {
@@ -81,6 +81,9 @@ def validate(cfg: object) -> dict:
     from .lighting import migrate
     for p in out["profiles"]:
         migrate(p)
+        for k in p["keys"]:
+            if not isinstance(k.get("double"), dict) or not isinstance(k["double"].get("type"), str):
+                k["double"] = {"type": "none"}
         if not isinstance(p["knob"].get("press"), dict) or not isinstance(p["knob"]["press"].get("type"), str):
             p["knob"]["press"] = {"type": "none"}
         if not isinstance(p.get("live"), dict) or p["live"].get("type") not in ("none", "light", "climate", "air"):

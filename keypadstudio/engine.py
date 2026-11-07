@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 from . import actions, config, lighting
 
 HOLD_S = 0.5      # key held this long = hold action
-DOUBLE_S = 0.3    # second knob press within this = previous profile
+DOUBLE_S = 0.3    # second press within this = double press (knob: previous profile)
 FAST_S, VFAST_S = 0.12, 0.06  # knob tick gaps that count as fast / very fast
 REVERSE_S = 0.25  # an opposite knob click this soon after a click is encoder bounce (raise if it still slips through)
 POLL_S = 2.0      # how often the live light re-reads its Home Assistant entity
@@ -32,6 +32,7 @@ class Engine:
         self.events: queue.Queue = queue.Queue()
         self.timers: dict[str, tuple[float, object]] = {}
         self.down: set[int] = set()
+        self.used: set[int] = set()  # keys whose current press was a double press
         self.knob_down = self.knob_hold_fired = False
         self.picking: str | None = None
         self.ticks, self.last_tick = 0, 0.0
@@ -119,15 +120,30 @@ class Engine:
     def _key(self, i: int, down: bool, now: float) -> None:
         key = self.profile()["keys"][i]
         has_hold = key["hold"].get("type", "none") != "none"
-        name = f"key{i}"
-        if not has_hold:
-            if down:
-                self._run(key["tap"])
-            return
+        has_dbl = key.get("double", {}).get("type", "none") != "none"
+        name, wait = f"key{i}", f"dbl{i}"
         if down:
-            self.timers[name] = (now + HOLD_S, lambda _now: self._run(key["hold"]))
-        elif name in self.timers:  # released before the hold fired
+            if wait in self.timers:  # second press inside the window
+                del self.timers[wait]
+                self.used.add(i)
+                self._run(key["double"])
+            elif has_hold:
+                self.timers[name] = (now + HOLD_S, lambda _now: self._run(key["hold"]))
+            elif not has_dbl:
+                self._run(key["tap"])  # nothing to wait for: instant
+            return
+        if i in self.used:  # release of the double press
+            self.used.discard(i)
+            return
+        if has_hold:
+            if name not in self.timers:
+                return  # the hold already fired
             del self.timers[name]
+        elif not has_dbl:
+            return  # tap ran on press
+        if has_dbl:
+            self.timers[wait] = (now + DOUBLE_S, lambda _now: self._run(key["tap"]))
+        else:
             self._run(key["tap"])
 
     def _knob_press(self, down: bool, now: float) -> None:

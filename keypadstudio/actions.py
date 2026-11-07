@@ -8,6 +8,7 @@ import subprocess
 import threading
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 
 from . import win
@@ -46,6 +47,9 @@ class HomeAssistant:
 
     def call(self, domain: str, service: str, data: dict) -> None:
         self._req(f"/api/services/{domain}/{service}", data)
+
+    def fire(self, event: str, data: dict) -> None:
+        self._req(f"/api/events/{urllib.parse.quote(event, safe='')}", data)
 
     def state(self, entity: str) -> dict:
         return self._req(f"/api/states/{entity}")
@@ -114,15 +118,29 @@ def run(a: dict, ha, switch_profile, notify=_no_notify) -> None:
     t = a.get("type", "none")
     if t == "none":
         return
+    if t == "macro":
+        steps = a.get("steps") or []
+        if any(s.get("type") == "macro" for s in steps):
+            raise ActionError("a macro cannot contain another macro")
+        for s in steps:
+            run(s, ha, switch_profile, notify)
+            time.sleep(max(0, min(10000, int(s.get("wait") or 0))) / 1000)
+        return
     if t.startswith("ha_"):
-        if t == "ha_service":
-            domain, _, service = _need(a, "service").partition(".")
-            if not service:
-                raise ActionError("service must look like domain.service, e.g. light.turn_on")
+        if t in ("ha_service", "ha_event"):
             try:
                 data = json.loads(a.get("data") or "{}")
             except ValueError as e:
                 raise ActionError("extra data is not valid JSON") from e
+            if not isinstance(data, dict):
+                raise ActionError("extra data must be a JSON object, e.g. {\"key\": 1}")
+        if t == "ha_event":
+            ha().fire(_need(a, "event"), data)
+            return
+        if t == "ha_service":
+            domain, _, service = _need(a, "service").partition(".")
+            if not service:
+                raise ActionError("service must look like domain.service, e.g. light.turn_on")
             if a.get("entity"):
                 data.setdefault("entity_id", a["entity"])
             ha().call(domain, service, data)

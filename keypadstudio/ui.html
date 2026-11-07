@@ -67,6 +67,8 @@ h3{font-size:13px;margin:0 0 8px}
 .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
 .fields{display:grid;gap:14px}
+.step{border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;gap:10px}
+.step select{flex:1}
 label.f{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);min-width:0}
 label.f>span{display:flex;gap:0 6px;align-items:center}
 label.f>span:has(output){flex-wrap:wrap}
@@ -273,6 +275,7 @@ const ACTIONS = {
   ha_scene:        {g:'Home Assistant', l:'Activate scene', f:[ent('scene','Scene')]},
   ha_automation:   {g:'Home Assistant', l:'Trigger automation', f:[ent('automation','Automation')]},
   ha_script:       {g:'Home Assistant', l:'Run script', f:[ent('script','Script')]},
+  ha_event:        {g:'Home Assistant', l:'Send event to Home Assistant', f:[{k:'event',l:'Event name (use it as an automation trigger)',t:'text',d:'keypad_studio',ph:'keypad_studio'}, {k:'data',l:'Event data (JSON)',t:'textarea',d:'{"key": "desk_1"}'}], note:'event'},
   ha_service:      {g:'Home Assistant', l:'Call any service (advanced)', f:[{k:'service',l:'Service',t:'text',ph:'light.turn_on'}, ent(), {k:'data',l:'Extra data (JSON)',t:'textarea',ph:'{"transition": 2}'}]},
   launch:          {g:'PC', l:'Launch application', f:[{k:'path',l:'Program, shortcut or file',t:'file',ph:'C:\\Program Files\\App\\app.exe'}, {k:'args',l:'Arguments (optional)',t:'text'}]},
   url:             {g:'PC', l:'Open website', f:[{k:'url',l:'Address',t:'text',ph:'https://'}]},
@@ -281,6 +284,7 @@ const ACTIONS = {
   media:           {g:'PC', l:'Media control', f:[{k:'cmd',l:'Command',t:'select',d:'play_pause',opts:{play_pause:'Play / pause',next:'Next track',prev:'Previous track',mute:'Mute speakers',mic:'Mute / unmute microphone'}}]},
   audio_out:       {g:'PC', l:'Switch audio output', f:[{k:'device',l:'Cycle between these outputs (one per line, part of the name is enough)',t:'textarea',ph:'Realtek\nLG ULTRAWIDE'}], note:'outputs'},
   command:         {g:'PC', l:'Run PowerShell command', f:[{k:'cmd',l:'Command',t:'textarea',ph:'Start-Process notepad'}, {k:'hidden',l:'Run without a window',t:'bool',d:true}]},
+  macro:           {g:'Keypad', l:'Macro (several actions in a row)', f:[{k:'steps',l:'Steps',t:'steps',d:[]}]},
   profile:         {g:'Keypad', l:'Go to profile', f:[{k:'profile',l:'Profile',t:'profile'}]},
   timer:           {g:'Keypad', l:'Focus timer (press again to cancel)', f:[{k:'minutes',l:'Minutes',t:'range',min:5,max:90,d:25,unit:' min'}]},
 };
@@ -324,7 +328,7 @@ let S = null, ST = {}, LT = {climate:{}, air:[], modes:{}}, ENTS = {}, AUDIO = {
 let view = 'profile', ptab = 'controls', sel = {kind:'key', i:0}, slot = 'tap', dirty = false, PREVIEW = null;
 const uid = () => Math.random().toString(36).slice(2, 8);
 const clone = o => JSON.parse(JSON.stringify(o));
-const K = (label, tap) => ({label, tap, hold:{type:'none'}});
+const K = (label, tap) => ({label, tap, hold:{type:'none'}, double:{type:'none'}});
 const blankKey = () => K('', {type:'none'});
 const P = () => S.profiles.find(p => p.id === S.active) || S.profiles[0];
 
@@ -358,7 +362,7 @@ const domainOf = id => (id || '').split('.')[0];
 let toastT; const toast = (m, err) => { const t = $('#toast'); t.textContent = m; t.classList.toggle('err', !!err); t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), err ? 7000 : 3500); };
 async function busy(btn, fn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); try { await fn(); } catch (e) { toast(e.message, true); } finally { btn.disabled = false; btn.removeAttribute('aria-busy'); } }
 const setHTML = (el, h) => { if (el._h !== h) el.innerHTML = el._h = h; };  // polled re-renders must not reset focus/hover
-const audioNote = kind => !kind ? '' : `<p class="note">${kind === 'outputs' ? 'Your outputs' : 'Playing sound now'}: ${(AUDIO[kind] || []).map(esc).join(' · ') || (kind === 'apps' ? 'nothing; start the program, then reopen this' : 'none found')}</p>`;
+const audioNote = kind => kind === 'event' ? '<p class="note">In Home Assistant: Automation → trigger “Event”, with this event name. The event data is available as trigger.event.data.</p>' : !kind ? '' : `<p class="note">${kind === 'outputs' ? 'Your outputs' : 'Playing sound now'}: ${(AUDIO[kind] || []).map(esc).join(' · ') || (kind === 'apps' ? 'nothing; start the program, then reopen this' : 'none found')}</p>`;
 const ICON = {
   ha:'<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
   device:'<svg viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="3"/><path d="M6 10h2M10 10h2M6 14h2M10 14h2"/><circle cx="17" cy="12" r="2.5"/></svg>',
@@ -394,6 +398,8 @@ function field(f, base, obj = P()) {
       if (!opts.length) return `<label class="f">${lab}<input ${b} value="${esc(v)}" placeholder="Pick the device first" spellcheck="false"></label>`;
       return `<label class="f">${lab}<select ${b}><option value="">Choose…</option>${opts.map(o => `<option value="${esc(o)}" ${o===v?'selected':''}>${esc(LT.modes[o] || o)}</option>`).join('')}</select></label>`;
     }
+    case 'steps': return `<div class="f">${lab}${(Array.isArray(v) ? v : []).map((s, i) => { const sb = `${path}.${i}`; return `<div class="step"><span class="row"><b>${i + 1}.</b><select data-bind="${sb}.type" data-retype aria-label="Step ${i + 1} action">${Object.entries(ACTIONS).filter(([k]) => k !== 'macro').map(([k, o]) => `<option value="${k}" ${k===s.type?'selected':''}>${esc(o.l)}</option>`).join('')}</select><button class="btn sm danger" data-act="delStep" data-for="${path}" data-i="${i}">Remove</button></span>
+      ${(ACTIONS[s.type] || ACTIONS.none).f.map(ff => field(ff, sb, obj)).join('')}${field({k:'wait', l:'Then wait', t:'range', min:0, max:5000, d:0, unit:' ms'}, sb, obj)}</div>`; }).join('')}<div><button class="btn sm" data-act="addStep" data-for="${path}">Add step</button></div></div>`;
     case 'capture': return `<label class="f">${lab}<input ${b} data-capture value="${esc(v)}" placeholder="Click here, then press the shortcut" readonly></label>`;
     case 'file':    return `<label class="f">${lab}<span><input ${b} value="${esc(v)}" placeholder="${esc(f.ph)}" spellcheck="false"><button class="btn sm" data-act="browse" data-for="${path}">Browse…</button></span></label>`;
     default:        return `<label class="f">${lab}<input ${b} value="${esc(v)}" placeholder="${esc(f.ph||'')}" spellcheck="false"></label>`;
@@ -413,6 +419,8 @@ const summary = a => {
   if (a.type === 'launch') return (a.path || '').split(/[\\/]/).pop();
   if (a.type === 'hotkey') return a.keys || '';
   if (a.type === 'media') return ACTIONS.media.f[0].opts[a.cmd] || '';
+  if (a.type === 'macro') return `${(a.steps || []).length} steps`;
+  if (a.type === 'ha_event') return a.event || '';
   return ACTIONS[a.type]?.l || '';
 };
 const kindLabel = p => p.live?.type && p.live.type !== 'none' ? LIVE[p.live.type].l : '';
@@ -440,7 +448,7 @@ function padHTML(p) {
   return `<div class="pad${flip ? ' flip' : ''}">
     <div class="pad-body">
       ${p.keys.map((kk, i) => `<button class="key" data-key="${i}" aria-pressed="${sel.kind==='key'&&sel.i===i}" style="grid-column:${i%3+(flip?2:1)};grid-row:${(i/3|0)+1}">
-        ${S.settings.mode === 'keys' ? `<b>${esc(S.profiles[i]?.name || '—')}</b><small>profile</small>` : `<b>${esc(kk.label || summary(kk.tap) || 'Key '+(i+1))}</b><small>${kk.hold.type!=='none'?'+ hold':''}</small>`}</button>`).join('')}
+        ${S.settings.mode === 'keys' ? `<b>${esc(S.profiles[i]?.name || '—')}</b><small>profile</small>` : `<b>${esc(kk.label || summary(kk.tap) || 'Key '+(i+1))}</b><small>${[kk.hold.type!=='none'&&'+ hold', kk.double?.type&&kk.double.type!=='none'&&'+ 2×'].filter(Boolean).join(' ')}</small>`}</button>`).join('')}
       <div class="knob-wrap" style="grid-column:${flip?1:4}"><button class="knob" data-knob aria-pressed="${sel.kind==='knob'}" aria-label="Edit knob"></button><span class="knob-cap">${esc(k.s)}${p.knob.entity ? '<br>' + esc(ename(p.knob.entity) || p.knob.entity) : ''}</span></div>
     </div>
   </div>`;
@@ -490,15 +498,16 @@ function inspectorHTML(p) {
       ${field({k:'invert', l:'Reverse direction', t:'bool'}, 'knob')}
     </div>${press}</div>`;
   }
-  const kk = p.keys[sel.i], a = kk[slot], base = `keys.${sel.i}.${slot}`;
+  const kk = p.keys[sel.i], a = kk[slot] ||= {type:'none'}, base = `keys.${sel.i}.${slot}`;
   return `<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Key ${sel.i + 1}</h2>
-      <div class="subtabs" role="tablist"><button role="tab" data-slot="tap" aria-selected="${slot==='tap'}">Press</button><button role="tab" data-slot="hold" aria-selected="${slot==='hold'}">Hold${kk.hold.type!=='none'?' ●':''}</button></div></div>
+      <div class="subtabs" role="tablist"><button role="tab" data-slot="tap" aria-selected="${slot==='tap'}">Press</button><button role="tab" data-slot="hold" aria-selected="${slot==='hold'}">Hold${kk.hold.type!=='none'?' ●':''}</button><button role="tab" data-slot="double" aria-selected="${slot==='double'}">Double${kk.double?.type&&kk.double.type!=='none'?' ●':''}</button></div></div>
     ${S.settings.mode === 'keys' ? `<p class="note">The keys switch profile right now (Settings), so this key opens ${esc(S.profiles[sel.i]?.name || 'nothing')}. The action below is kept for the other mode.</p>` : ''}
     <div class="fields">
     <label class="f"><span>Label on screen</span><input data-bind="keys.${sel.i}.label" value="${esc(kk.label)}" placeholder="${esc(summary(kk.tap) || 'Name shown on the key')}"></label>
     ${actionSelect(base + '.type', a.type)}
     ${(ACTIONS[a.type] || ACTIONS.none).f.map(f => field(f, base)).join('')}
     ${audioNote(ACTIONS[a.type]?.note)}
+    ${slot==='double' ? '<p class="note">Double = press twice quickly. With a double action set, the single press waits a moment (0.3 s) before it runs, to see whether a second press follows.</p>' : ''}
     ${slot==='hold' ? '<p class="note">Hold = keep the key down for half a second. With a hold action set, the press action runs when you let go instead of instantly.</p>' : ''}
     ${a.type!=='none' ? `<div><button class="btn" data-act="test">Run now</button></div>` : ''}
   </div></div>`;
@@ -775,6 +784,7 @@ function retype(bind, type) {  // switch an action/knob to a new type, keeping w
   const path = bind.replace(/\.type$/, ''), isKnob = path === 'knob', def = isKnob ? KNOB : ACTIONS;
   const old = getPath(P(), path), next = {type};
   if (old.entity) next.entity = old.entity;
+  if (old.wait) next.wait = old.wait;  // macro step delay
   if (isKnob) Object.assign(next, {step: Math.min(old.step || 5, KNOB[type].max), sens: old.sens || 1, accel: !!old.accel, invert: !!old.invert, press: old.press || {type:'none'}});
   for (const f of (def[type].f || [])) if (f.d !== undefined && next[f.k] === undefined) next[f.k] = clone(f.d);
   for (const f of (def[type].f || [])) if (f.t === 'entity' && f.domain !== 'any' && domainOf(next.entity) !== f.domain) next.entity = guessEntity(P(), f.domain);
@@ -822,6 +832,8 @@ const ACTS = {
     S.profiles = S.profiles.filter(x => x.id !== p.id); S.active = S.profiles[0].id; render(); save();
     api('/api/activate', 'POST', {id: S.active}).catch(() => {});
   },
+  addStep(btn) { const p = btn.dataset.for, steps = getPath(P(), p) || []; steps.push({type:'none', wait:0}); setPath(P(), p, steps); render(); save(); },
+  delStep(btn) { getPath(P(), btn.dataset.for).splice(+btn.dataset.i, 1); render(); save(); },
   enableAuto() { S.settings.autoSwitch = true; render(); save(); },
   stopPreview() { PREVIEW = null; render(); },
   test(btn) { busy(btn, async () => { await flush(); await api('/api/run', 'POST', {profile: P().id, key: sel.kind === 'knob' ? 'knob' : sel.i, slot}); toast('Done.'); }); },
