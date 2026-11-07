@@ -58,7 +58,7 @@ a{color:var(--accent)}
 .icon[disabled]{opacity:.3;pointer-events:none}
 
 /* main */
-main{padding:24px 28px 48px;min-width:0;max-width:1180px}
+main{padding:24px 28px 48px;min-width:0;max-width:1180px;width:100%;margin:0 auto}
 h1{font-size:21px;margin:0}
 h2{font-size:15px;margin:0 0 4px}
 h3{font-size:13px;margin:0 0 8px}
@@ -68,7 +68,9 @@ h3{font-size:13px;margin:0 0 8px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow)}
 .fields{display:grid;gap:14px}
 label.f{display:flex;flex-direction:column;gap:5px;font-size:12px;color:var(--muted);min-width:0}
-label.f>span{display:flex;gap:6px;align-items:center}
+label.f>span{display:flex;gap:0 6px;align-items:center}
+label.f>span:has(output){flex-wrap:wrap}
+output{white-space:nowrap;color:var(--text);font-variant-numeric:tabular-nums}
 .f input:not([type=color]):not([type=range]):not([type=checkbox]),.f select,.f textarea,.ctl{
   background-color:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;color:var(--text);min-width:0;width:100%}
 .f textarea{min-height:64px;resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:12px}
@@ -140,10 +142,10 @@ td input[type=number]{width:80px}
 
 /* keypad drawing */
 .pad{display:flex;flex-direction:column;align-items:center;gap:12px}
-.pad-body{background:var(--body);border-radius:22px;padding:20px;display:grid;
-  grid-template-columns:repeat(3,78px) 104px;grid-template-rows:78px 78px;gap:12px;align-items:center;justify-items:center;
+.pad-body{--k:78px;background:var(--body);border-radius:22px;padding:calc(var(--k) * .26);display:grid;
+  grid-template-columns:repeat(3,var(--k)) calc(var(--k) * 1.33);grid-template-rows:var(--k) var(--k);gap:calc(var(--k) * .15);align-items:center;justify-items:center;
   box-shadow:0 10px 30px -12px rgba(0,0,0,.5)}
-.pad.flip .pad-body{grid-template-columns:104px repeat(3,78px)}
+.pad.flip .pad-body{grid-template-columns:calc(var(--k) * 1.33) repeat(3,var(--k))}
 .key{all:unset;box-sizing:border-box;cursor:pointer;position:relative;width:100%;height:100%;border-radius:12px;background:var(--cap);color:var(--cap-text);
   display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:6px 6px 10px;gap:2px;
   box-shadow:inset 0 -3px 0 var(--cap-edge),0 0 22px -2px var(--led,transparent)}
@@ -153,7 +155,7 @@ td input[type=number]{width:80px}
 .key[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:3px}
 .key:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .knob-wrap{grid-row:1/3;display:flex;flex-direction:column;align-items:center;gap:8px}
-.knob{all:unset;cursor:pointer;width:84px;height:84px;border-radius:50%;position:relative;
+.knob{all:unset;cursor:pointer;width:calc(var(--k) * 1.08);height:calc(var(--k) * 1.08);border-radius:50%;position:relative;
   background:radial-gradient(circle at 40% 35%,#5b616c,#2a2e35 70%);box-shadow:0 4px 10px rgba(0,0,0,.5),0 0 0 3px #15171b,0 0 26px -2px var(--led,transparent)}
 .knob::after{content:"";position:absolute;left:50%;top:8px;width:3px;height:18px;margin-left:-1.5px;border-radius:2px;background:#e9ecf1}
 .knob[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:4px}
@@ -178,18 +180,53 @@ ol.flow{margin:0;padding-left:20px;display:grid;gap:8px}
 .list div{display:flex;justify-content:space-between;gap:12px;border-bottom:1px solid var(--line);padding:5px 0}
 .list span{color:var(--muted);font-family:ui-monospace,Consolas,monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis}
 
-@media (max-width:960px){ .grid2{grid-template-columns:1fr} .sticky{position:static} }
+#toast.err{background:#b42323;color:#fff}  /* fixed red: --danger is too light under white text in dark mode */
+.err{color:var(--danger)!important}
+.saved.err{font-weight:600}
+#offline{position:sticky;top:0;z-index:8;background:#b42323;color:#fff;font-size:13px;padding:8px 16px;text-align:center}
+.tscroll{overflow-x:auto;margin:0 -4px;padding:0 4px}
+.tscroll table{min-width:420px}
+.tscroll td{white-space:nowrap}
+[data-capture]:focus{border-color:var(--accent)!important;background-color:var(--accent-soft)!important}
+.plist .addp{display:none}
+
+@media (max-width:960px){
+  .app{grid-template-columns:208px minmax(0,1fr)}
+  main{padding:20px 20px 40px}
+  .grid2{grid-template-columns:1fr} .sticky{position:static}
+}
+/* narrow window / phone: sidebar becomes a compact header with scrolling chip rows */
 @media (max-width:720px){
   .app{grid-template-columns:1fr}
-  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line)}
-  main{padding:16px}
-  .pad-body{grid-template-columns:repeat(3,minmax(0,62px)) 84px;grid-template-rows:62px 62px;padding:14px;gap:8px}
-  .pad.flip .pad-body{grid-template-columns:84px repeat(3,minmax(0,62px))}
-  .knob{width:66px;height:66px}
+  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:12px 16px}
+  .brand{padding:0}
+  .saved{grid-row:1;grid-column:2;margin:0;padding:0;align-self:center;text-align:right;max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .status{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 16px;border:0;padding:0;margin:0}
+  .sec{display:none}
+  .plist,.nav{grid-column:1/-1;flex-direction:row;overflow-x:auto;scrollbar-width:none;gap:6px;margin:0 -16px;padding:0 16px}
+  .plist li,.nav li{flex:none}
+  .plist .pick,.nav button{border:1px solid var(--line);border-radius:999px;padding:6px 12px;width:auto}
+  .plist .kind,.plist .mv{display:none!important}
+  .plist .addp{display:flex}
+  .plist .addp .pick{border-style:dashed;color:var(--muted)}
+  main{padding:16px 16px 40px}
+  .phead .title{flex:1 1 160px}
+  .pad-body{--k:min(62px,calc((100vw - 32px) / 5.4))}
+  .tiles{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
+  dialog{padding:16px;width:calc(100vw - 16px)}
+  #toast{left:12px;right:12px;bottom:12px;max-width:none}
+}
+@media (hover:none){ .plist .mv{display:flex} }
+@media (pointer:coarse){
+  .btn,.btn.sm{padding:9px 14px}
+  .icon{padding:8px 10px}
+  .achip{padding:8px 13px}
+  .nav button,.plist .pick{padding:9px 12px}
 }
 </style>
 </head>
 <body>
+<div id="offline" role="alert" hidden>Keypad Studio is not responding. Changes will be saved when it is back; retrying…</div>
 <div class="app">
   <aside class="side">
     <div class="brand"><i>K</i>Keypad Studio</div>
@@ -203,7 +240,7 @@ ol.flow{margin:0;padding-left:20px;display:grid;gap:8px}
     <nav class="nav" id="nav"></nav>
     <div class="saved" id="saved"></div>
   </aside>
-  <main id="main"></main>
+  <main id="main"><p class="sub">Loading…</p></main>
 </div>
 <div id="toast" role="status" aria-live="polite"></div>
 <dialog id="dlg"></dialog>
@@ -292,16 +329,23 @@ const blankKey = () => K('', {type:'none'});
 const P = () => S.profiles.find(p => p.id === S.active) || S.profiles[0];
 
 let saveT;
+const savedMsg = (m, err) => { const s = $('#saved'); s.textContent = m; s.title = m; s.classList.toggle('err', !!err); };
 function save() {
-  dirty = true; $('#saved').textContent = 'Saving…';
+  dirty = true; savedMsg('Saving…');
   clearTimeout(saveT);
-  saveT = setTimeout(flush, 400);
+  saveT = setTimeout(() => flush().catch(() => {}), 400);
 }
 async function flush() {
   clearTimeout(saveT);
-  try { await api('/api/config', 'PUT', S); dirty = false; $('#saved').textContent = 'All changes saved'; }
-  catch (e) { $('#saved').textContent = 'Not saved: ' + e.message; throw e; }
+  try { await api('/api/config', 'PUT', S); dirty = false; savedMsg('All changes saved'); }
+  catch (e) {
+    savedMsg('Not saved: ' + e.message + '. Retrying…', true);
+    saveT = setTimeout(() => flush().catch(() => {}), 5000);  // keep trying; the edit stays in S meanwhile
+    throw e;
+  }
 }
+// Closing the window inside the 400 ms debounce must not lose the last edit.
+addEventListener('pagehide', () => { if (dirty) fetch('/api/config', {method:'PUT', keepalive:true, headers:{'X-Key':KEY, 'Content-Type':'application/json'}, body:JSON.stringify(S)}); });
 
 /* ---------- helpers ---------- */
 const $ = s => document.querySelector(s);
@@ -311,8 +355,9 @@ const setPath = (o, p, v) => { const ks = p.split('.'), last = ks.pop(); ks.redu
 const hex2rgb = h => { h = (h || '#ffffff').replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16) || 0); };
 const ename = id => ENTS[id]?.name || '';
 const domainOf = id => (id || '').split('.')[0];
-let toastT; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 3500); };
-async function busy(btn, fn) { btn.disabled = true; try { await fn(); } catch (e) { toast(e.message); } finally { btn.disabled = false; } }
+let toastT; const toast = (m, err) => { const t = $('#toast'); t.textContent = m; t.classList.toggle('err', !!err); t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), err ? 7000 : 3500); };
+async function busy(btn, fn) { btn.disabled = true; btn.setAttribute('aria-busy', 'true'); try { await fn(); } catch (e) { toast(e.message, true); } finally { btn.disabled = false; btn.removeAttribute('aria-busy'); } }
+const setHTML = (el, h) => { if (el._h !== h) el.innerHTML = el._h = h; };  // polled re-renders must not reset focus/hover
 const audioNote = kind => !kind ? '' : `<p class="note">${kind === 'outputs' ? 'Your outputs' : 'Playing sound now'}: ${(AUDIO[kind] || []).map(esc).join(' · ') || (kind === 'apps' ? 'nothing; start the program, then reopen this' : 'none found')}</p>`;
 const ICON = {
   ha:'<svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>',
@@ -375,10 +420,13 @@ const kindLabel = p => p.live?.type && p.live.type !== 'none' ? LIVE[p.live.type
 /* ---------- sidebar ---------- */
 const NAV = [['ha','Home Assistant'],['device','Keypad'],['settings','Settings'],['help','Help']];
 function renderSide() {
-  $('#nav').innerHTML = NAV.map(([k, l]) => `<li><button data-view="${k}" aria-current="${view===k}">${ICON[k]}${l}</button></li>`).join('');
-  $('#plist').innerHTML = S.profiles.map((p, i) => `<li class="${p.id===S.active&&view==='profile'?'on':''}">
-    <button class="pick" data-pick="${p.id}"><span class="swatch" style="background:${esc(p.color)}"></span><span class="name">${esc(p.name)}</span><span class="kind">${p.id===S.active?'● active':''}</span></button>
-    <span class="mv"><button class="icon" data-move="${i},-1" aria-label="Move ${esc(p.name)} up" ${i?'':'disabled'}>▲</button><button class="icon" data-move="${i},1" aria-label="Move ${esc(p.name)} down" ${i<S.profiles.length-1?'':'disabled'}>▼</button></span></li>`).join('');
+  setHTML($('#nav'), NAV.map(([k, l]) => `<li><button data-view="${k}" aria-current="${view===k}">${ICON[k]}${l}</button></li>`).join(''));
+  setHTML($('#plist'), S.profiles.map((p, i) => `<li class="${p.id===S.active&&view==='profile'?'on':''}">
+    <button class="pick" data-pick="${p.id}" aria-current="${p.id===S.active&&view==='profile'}"><span class="swatch" style="background:${esc(p.color)}"></span><span class="name">${esc(p.name)}</span><span class="kind">${p.id===S.active?'● active':''}</span></button>
+    <span class="mv"><button class="icon" data-move="${i},-1" aria-label="Move ${esc(p.name)} up" ${i?'':'disabled'}>▲</button><button class="icon" data-move="${i},1" aria-label="Move ${esc(p.name)} down" ${i<S.profiles.length-1?'':'disabled'}>▼</button></span></li>`).join('')
+    + '<li class="addp"><button class="pick" data-act="newProfile">＋ New profile</button></li>');
+  $('#offline').hidden = !ST.offline;
+  if (ST.offline) { $('#devDot').className = $('#haDot').className = 'dot off'; $('#devText').textContent = 'Keypad Studio not responding'; $('#haText').textContent = 'Home Assistant · unknown'; return; }
   $('#devDot').className = 'dot' + (ST.connected ? '' : ' off');
   $('#devText').textContent = ST.connected ? `${ST.model} connected${ST.paused ? ' · paused' : ''}` : 'Keypad not plugged in';
   const haOk = Object.keys(ENTS).length > 0;
@@ -476,7 +524,7 @@ function lightingHTML(p) {
       return `<tr><td>${esc(LT.modes[m] || m)}</td><td><input type="color" data-bind="live.modes.${m}.color" value="${esc(color)}"></td><td>${fxSelect(`live.modes.${m}.fx`, r.fx)}</td><td>${prevBtn(color, r.fx)}</td></tr>`;
     }).join('');
     detail = `<div class="fields">${field(ent('climate', 'Air conditioner'), 'live')}
-      <table><thead><tr><th>Mode</th><th>Colour</th><th>Animation</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="tscroll"><table><thead><tr><th>Mode</th><th>Colour</th><th>Animation</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
       <p class="note">“Off” uses the profile colour, dimmed. Each mode has its own colour and animation so you can tell them apart at a glance. The preview on the left is an approximation of the keypad’s own effects.</p></div>`;
   } else if (t === 'air') {
     const bands = live.bands || LT.air;
@@ -484,7 +532,7 @@ function lightingHTML(p) {
       <td>${i < bands.length - 1 ? `≤ <input class="ctl" type="number" min="0" data-bind="live.bands.${i}.max" value="${esc(b.max)}">` : 'above'}</td>
       <td><input type="color" data-bind="live.bands.${i}.color" value="${esc(b.color)}"></td><td>${fxSelect(`live.bands.${i}.fx`, b.fx)}</td><td>${prevBtn(b.color, b.fx)}</td></tr>`).join('');
     detail = `<div class="fields">${field(ent('sensor', 'PM2.5 sensor'), 'live')}
-      <table><thead><tr><th>Level</th><th>PM2.5 (µg/m³)</th><th>Colour</th><th>Animation</th><th></th></tr></thead><tbody>${rows}</tbody></table>
+      <div class="tscroll"><table><thead><tr><th>Level</th><th>PM2.5 (µg/m³)</th><th>Colour</th><th>Animation</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
       <p class="note">Default limits follow the US EPA PM2.5 scale. The keypad pulses red when the air is unhealthy.</p></div>`;
   }
   return `<div class="card"><h2>What the keypad light shows</h2><p class="desc">Applies while this profile is active. The colour is also used for the tray icon and on-screen name.</p><div class="tiles">${tiles}</div></div>
@@ -506,8 +554,8 @@ function viewProfile() {
       <input class="title" data-bind="name" value="${esc(p.name)}" aria-label="Profile name">
       ${liveChip(p)}
       <span class="spacer"></span>
-      <button class="btn sm" data-act="dupProfile">Duplicate</button>
-      <button class="btn sm danger" data-act="delProfile" ${S.profiles.length<2?'disabled':''}>Delete</button>
+      <span class="row" style="gap:8px;margin-left:auto"><button class="btn sm" data-act="dupProfile">Duplicate</button>
+      <button class="btn sm danger" data-act="delProfile" ${S.profiles.length<2?'disabled title="Keep at least one profile"':''}>Delete</button></span>
     </div>
     <div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" data-ptab="${k}" aria-selected="${ptab===k}">${l}</button>`).join('')}</div>
     ${body}`;
@@ -570,7 +618,13 @@ function viewSettings() {
       </select></label>
       <label class="f" style="max-width:380px;margin-top:8px"><span>Hold the knob down</span><select data-gbind="settings.longPress">
         ${Object.entries({none:'Nothing', picker:'Pick a profile: hold, turn, release', mute:'Mute speakers', mic:'Mute / unmute microphone'}).map(([k, l]) => `<option value="${k}" ${S.settings.longPress===k?'selected':''}>${l}</option>`).join('')}
-      </select></label>` : ''}</div>`).join('')}
+      </select></label>
+      <div class="row" style="margin-top:8px;gap:12px;flex-wrap:wrap">
+        <label class="f" style="max-width:240px"><span>Home profile</span><select data-gbind="settings.homeProfile">
+          <option value="">None</option>${S.profiles.map(p => `<option value="${esc(p.id)}" ${S.settings.homeProfile===p.id?'selected':''}>${esc(p.name)}</option>`).join('')}
+        </select></label>
+        <label class="f" style="max-width:200px"><span>Return to it after (seconds idle)</span><input type="number" min="0" step="5" data-gbind="settings.homeAfter" value="${S.settings.homeAfter||0}"></label>
+      </div><p class="note">0 = never. The countdown restarts on every key or knob use, and waits while a program’s auto-switched profile is active.</p>` : ''}</div>`).join('')}
     <div class="card" style="max-width:720px"><h2>Files</h2><p class="desc">Config and log are in <kbd>${esc((ST.logPath||'').replace(/[^\\]+$/, ''))}</kbd></p>
       <button class="btn" data-act="export">Show config file</button></div>`;
 }
@@ -592,12 +646,16 @@ function viewHelp() {
 }
 
 let lastView = '';
+const FOCUS_KEYS = ['data-view','data-pick','data-key','data-knob','data-slot','data-ptab','data-live','data-flip','data-atype','data-apath','data-bind','data-gbind','data-act'];
 function render() {
-  const y = scrollY, same = lastView === view + ptab;
+  const y = scrollY, same = lastView === view + ptab, a = document.activeElement;
+  // re-rendering replaces the DOM: put keyboard focus back on the same control
+  const sig = a && a !== document.body ? FOCUS_KEYS.filter(k => a.hasAttribute(k)).map(k => `[${k}="${CSS.escape(a.getAttribute(k))}"]`).join('') : '';
   renderSide();
   ({profile:viewProfile, ha:viewHA, device:viewDevice, settings:viewSettings, help:viewHelp})[view]();
   lastView = view + ptab;
   scrollTo(0, same ? y : 0);
+  if (sig) document.querySelector(sig)?.focus({preventScroll: true});
 }
 const refreshPad = () => { const pad = document.querySelector('.pad'); if (pad) pad.outerHTML = padHTML(P()); renderSide(); save(); };
 
@@ -692,7 +750,7 @@ function setLive(type) {
   p.live = next; PREVIEW = null; ST.look = null; render(); save();
 }
 
-const bindValue = el => el.type === 'checkbox' ? el.checked : el.type === 'range' ? +el.value : el.type === 'number' ? (el.value === '' ? null : +el.value) : el.dataset.bind?.endsWith('.sens') ? +el.value : el.value;
+const bindValue = el => el.type === 'checkbox' ? el.checked : el.type === 'range' ? +el.value : el.type === 'number' ? (el.value === '' ? null : Math.max(+el.min || 0, +el.value || 0)) : el.dataset.bind?.endsWith('.sens') ? +el.value : el.value;
 document.addEventListener('input', e => {
   const el = e.target;
   if (el.closest('dialog')) return;
@@ -708,6 +766,7 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const el = e.target;
   if (el.closest('dialog')) { if (el.id === 'newEnt') { readNew(); NEW.sensor = NEW.tpl === 'purifier' ? bestSensor(NEW.entity) : ''; newDialog(); } return; }
+  if (el.dataset.bind === 'name' && !el.value.trim()) { el.value = P().name = 'Untitled profile'; refreshPad(); return; }  // never a nameless profile in the tray menu
   if ('ent' in el.dataset || el.dataset.bind?.startsWith('live.') || el.dataset.bind?.endsWith('.count')) { render(); return; }  // mode lists, previews and colour rows depend on these
   if (el.dataset.gbind === 'settings.mode') { render(); return; }
   if ('retype' in el.dataset) retype(el.dataset.bind, el.value);
@@ -723,6 +782,12 @@ function retype(bind, type) {  // switch an action/knob to a new type, keeping w
 }
 document.addEventListener('keydown', e => {
   const el = e.target;
+  const grp = el.closest?.('[role=tablist],[role=radiogroup]');
+  if (grp && /^Arrow(Left|Right|Up|Down)$/.test(e.key)) {  // standard arrow-key movement inside tabs and choice chips
+    const items = [...grp.querySelectorAll('[role=tab],[role=radio]')], i = items.indexOf(el);
+    if (i >= 0) { e.preventDefault(); const n = items[(i + (/Right|Down/.test(e.key) ? 1 : -1) + items.length) % items.length]; n.focus(); n.click(); }
+    return;
+  }
   if (el.classList?.contains('title') && e.key === 'Enter') { el.blur(); return; }
   if (!('capture' in (el.dataset || {})) || e.key === 'Tab') return;
   e.preventDefault();
@@ -767,7 +832,7 @@ const ACTS = {
     await flush();
     $('#haStatus').textContent = 'Testing…';
     try { const r = await api('/api/ha/test', 'POST'); setEntities(r.entities); render(); $('#haStatus').textContent = r.message; }
-    catch (e) { $('#haStatus').textContent = e.message; }
+    catch (e) { $('#haStatus').textContent = 'Failed: ' + e.message; $('#haStatus').classList.add('err'); }
   }); },
   program(btn) { if (confirm('Program the keypad to send F13–F21? Its keys will only work while Keypad Studio runs. The original layout is backed up first.')) busy(btn, async () => toast((await api('/api/program', 'POST')).message)); },
   restore(btn) { if (confirm('Put back the keypad’s original keys (numpad 4, 5, 6, macro, 2, 3 and the volume knob)?')) busy(btn, async () => toast((await api('/api/restore', 'POST')).message)); },
@@ -779,12 +844,14 @@ const ACTS = {
 };
 
 /* ---------- startup + live status ---------- */
-let entT = Date.now();
+let entT = Date.now(), fails = 0;
 async function loadEntities() { try { setEntities((await api('/api/ha/entities')).entities); } catch {} }
 async function poll(first) {
   try {
     const r = await api('/api/state');
     const conn = ST.connected, lookWas = JSON.stringify([ST.look, ST.liveError]);
+    if (ST.offline && dirty) flush().catch(() => {});  // back online: send what piled up
+    fails = 0;
     ST = r.status;
     if (first) { S = r.config; LT = r.lighting; }
     else if (!dirty && JSON.stringify(r.config) !== JSON.stringify(S)) {  // changed elsewhere (knob, tray, another window)
@@ -806,7 +873,12 @@ async function poll(first) {
       $('#main').innerHTML = '<div class="banner">Keypad Studio was restarted. Close this window and open settings from the tray icon.</div>';
       return;
     }
-    if (first) { $('#main').innerHTML = `<div class="banner">${esc(e.message)}. Open this window from the Keypad Studio tray icon.</div>`; return; }
+    if (first) {
+      $('#devDot').className = $('#haDot').className = 'dot off'; $('#devText').textContent = 'Not connected to Keypad Studio';
+      $('#main').innerHTML = `<div class="banner">${esc(e.message)}. Open this window from the Keypad Studio tray icon.</div>`; return;
+    }
+    if (S && ++fails >= 2 && !ST.offline) { ST.offline = true; renderSide(); }  // one blip is not an outage
+    return;
   }
   if (first) {
     api('/api/audio').then(r => { AUDIO = r; }).catch(() => {});

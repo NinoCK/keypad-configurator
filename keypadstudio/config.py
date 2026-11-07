@@ -48,7 +48,8 @@ DEFAULT = {
     "ha": {"url": "http://homeassistant.local:8123"},
     "settings": {"startup": False, "osd": True, "dblPrev": False, "longPress": "picker",
                  "autoSwitch": False, "sleepLocked": True, "ledBrightness": 1, "flip": False,
-                 "mode": "knob"},  # knob: press = next profile. keys: keys 1-6 = profiles, press = knob.press
+                 "mode": "knob",  # knob: press = next profile. keys: keys 1-6 = profiles, press = knob.press
+                 "homeProfile": "", "homeAfter": 0},  # return to homeProfile after homeAfter idle seconds (0 = never)
 }
 
 

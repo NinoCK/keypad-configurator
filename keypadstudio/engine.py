@@ -64,6 +64,8 @@ class Engine:
     def start(self) -> None:
         for target in (self._loop, self._knob_worker, self._auto_switch, self._live_poll):
             threading.Thread(target=target, daemon=True, name=target.__name__).start()
+        with self.lock:
+            self._arm_home()
         self.apply_light()
 
     def on_key(self, index: int, down: bool) -> None:
@@ -101,6 +103,7 @@ class Engine:
         (self.down.add if down else self.down.discard)(index)
         if self.paused:
             return
+        self._arm_home(now)
         if index < 6 and self.settings.get("flip"):
             index = 5 - index  # keypad turned 180 degrees: profiles stay in the order the user sees
         if index < 6 and self.settings.get("mode") == "keys":
@@ -257,7 +260,7 @@ class Engine:
         cur = self.cfg["active"]
         self.activate(ids[(ids.index(cur) + delta) % len(ids)] if cur in ids else ids[0])
 
-    def activate(self, pid: str, auto: bool = False) -> None:
+    def activate(self, pid: str, auto: bool = False, quiet: bool = False) -> None:
         with self.lock:
             if not any(p["id"] == pid for p in self.cfg["profiles"]):
                 raise actions.ActionError(f"profile {pid!r} no longer exists")
@@ -265,11 +268,29 @@ class Engine:
                 self.auto_from = None
             self.cfg["active"] = pid
             self.save()
+            self._arm_home()
             p = self.profile()
         self.apply_light()
         self.refresh_live()
-        self._osd(p["name"], p["color"])
+        if not quiet:
+            self._osd(p["name"], p["color"])
         self.on_change()
+
+    def _arm_home(self, now: float | None = None) -> None:
+        """(Re)start the countdown back to the home profile. Call with the lock held."""
+        home, secs = self.settings.get("homeProfile"), float(self.settings.get("homeAfter") or 0)
+        if home and secs > 0 and self.cfg["active"] != home:
+            self.timers["home"] = ((time.monotonic() if now is None else now) + secs, self._go_home)
+            self.events.put(None)  # wake _loop so it waits on the new deadline
+        else:
+            self.timers.pop("home", None)
+
+    def _go_home(self, now: float) -> None:
+        # Not mid-press, not while paused, not while an auto-switched program profile is in charge.
+        if any(i < 7 for i in self.down) or self.knob_down or self.picking or self.paused or self.auto_from:
+            self._arm_home(now)
+        elif any(p["id"] == self.settings.get("homeProfile") for p in self.cfg["profiles"]):
+            self.activate(self.settings["homeProfile"], quiet=True)
 
     def apply_light(self) -> None:
         """Push the current look to the keypad. Cheap: the device only writes when it changed."""
@@ -356,6 +377,7 @@ class Engine:
             startup_changed = new["settings"]["startup"] != self.settings.get("startup")
             self.cfg = new
             self.save()
+            self._arm_home()
         if startup_changed:
             set_startup(new["settings"]["startup"])
         self.apply_light()

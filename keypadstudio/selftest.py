@@ -25,7 +25,7 @@ class FakeEngine(engine.Engine):
     def save(self):
         pass
 
-    def activate(self, pid, auto=False):
+    def activate(self, pid, auto=False, quiet=False):
         self.cfg["active"] = pid
         self.switched.append(pid)
 
@@ -279,6 +279,20 @@ def test_light():
     assert light_config("#4f8cff", "breath", 2).mode == 2
     assert light_config("#4f8cff", "steady", 0).mode == 0  # brightness 0 = off
     assert light_config("#ff0000", "steady", 1, level=0.5).v == 50
+
+
+def test_home_timeout():
+    e = FakeEngine(homeProfile="desk", homeAfter=10)
+    e.cfg["active"] = "pc"
+    e._arm_home(0)
+    e._fire(5); e._handle(8, True, 5)  # activity restarts the countdown
+    e._fire(14); assert e.switched == []
+    e._handle(0, True, 20)  # still held when the deadline passes: wait
+    e._fire(30); assert e.switched == []
+    e._handle(0, False, 31)
+    e._fire(41); assert e.switched == ["desk"], e.switched
+    e.settings["homeAfter"] = 0
+    e._arm_home(50); assert "home" not in e.timers
 
 
 if __name__ == "__main__":
