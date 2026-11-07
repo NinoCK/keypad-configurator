@@ -13,6 +13,8 @@ EFFECTS = {
     "steady": ("steady", 0), "breathe": ("breath", SLOW), "pulse": ("breath", FAST),
     "wave": ("tidal", SLOW), "rush": ("tidal", FAST), "press": ("press", 2),
     "dim": ("steady", 0), "off": ("off", 0),
+    # Firmware palette mode (light config colour=0): the keypad cycles colours itself.
+    "rainbow": ("steady", 0), "rainbow-breathe": ("breath", SLOW), "rainbow-wave": ("tidal", SLOW),
 }
 DIM = 0.15
 # Names used by earlier versions (firmware-era, then host-drawn).
@@ -98,4 +100,5 @@ def migrate(profile: dict) -> None:
 def firmware(lk: dict) -> tuple[str, str, int, float]:
     """(colour, firmware mode, speed, level) for device.light_config."""
     mode, speed = EFFECTS.get(lk["fx"], EFFECTS["steady"])
-    return lk["color"], mode, speed, lk["level"] * (DIM if lk["fx"] == "dim" else 1)
+    color = "rainbow" if lk["fx"].startswith("rainbow") else lk["color"]
+    return color, mode, speed, lk["level"] * (DIM if lk["fx"] == "dim" else 1)

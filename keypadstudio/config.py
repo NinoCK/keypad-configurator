@@ -18,7 +18,7 @@ TOKEN_TARGET = "KeypadStudio/HomeAssistant"
 
 
 def _key(label, tap):
-    return {"label": label, "tap": tap, "hold": {"type": "none"}}
+    return {"label": label, "tap": tap, "hold": {"type": "none"}, "double": {"type": "none"}}
 
 
 DEFAULT = {
@@ -48,7 +48,8 @@ DEFAULT = {
     "ha": {"url": "http://homeassistant.local:8123"},
     "settings": {"startup": False, "osd": True, "dblPrev": False, "longPress": "picker",
                  "autoSwitch": False, "sleepLocked": True, "ledBrightness": 1, "flip": False,
-                 "mode": "knob"},  # knob: press = next profile. keys: keys 1-6 = profiles, press = knob.press
+                 "mode": "knob",  # knob: press = next profile. keys: keys 1-6 = profiles, press = knob.press
+                 "homeProfile": "", "homeAfter": 0},  # return to homeProfile after homeAfter idle seconds (0 = never)
 }
 
 
@@ -80,6 +81,9 @@ def validate(cfg: object) -> dict:
     from .lighting import migrate
     for p in out["profiles"]:
         migrate(p)
+        for k in p["keys"]:
+            if not isinstance(k.get("double"), dict) or not isinstance(k["double"].get("type"), str):
+                k["double"] = {"type": "none"}
         if not isinstance(p["knob"].get("press"), dict) or not isinstance(p["knob"]["press"].get("type"), str):
             p["knob"]["press"] = {"type": "none"}
         if not isinstance(p.get("live"), dict) or p["live"].get("type") not in ("none", "light", "climate", "air"):

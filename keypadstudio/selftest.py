@@ -25,7 +25,7 @@ class FakeEngine(engine.Engine):
     def save(self):
         pass
 
-    def activate(self, pid, auto=False):
+    def activate(self, pid, auto=False, quiet=False):
         self.cfg["active"] = pid
         self.switched.append(pid)
 
@@ -51,6 +51,40 @@ def test_keys():
     assert e.ran == ["tap1"], e.ran
     press(e, 1, 3.0, 3.6)
     assert e.ran == ["tap1", "hold1"], e.ran
+
+
+def test_double():
+    e = FakeEngine()
+    k = e.profile()["keys"][2]
+    k["tap"]["label"], k["double"] = "tap2", {"type": "media", "label": "dbl2"}
+    press(e, 2, 0.0, 0.05); assert e.ran == []  # waiting for a second press
+    e._fire(0.4); assert e.ran == ["tap2"], e.ran
+    press(e, 2, 1.0, 1.05); press(e, 2, 1.15, 1.2)
+    e._fire(2.0); assert e.ran == ["tap2", "dbl2"], e.ran  # no stray tap after the double
+    k["hold"] = {"type": "media", "label": "hold2"}  # all three on one key
+    press(e, 2, 3.0, 3.7); e._fire(4.5)
+    assert e.ran[-1] == "hold2" and len(e.ran) == 3, e.ran
+
+
+def test_macro_and_event():
+    from keypadstudio import actions
+    sent = []
+
+    class HA:
+        def call(self, d, s, data): sent.append(f"{d}.{s}")
+        def fire(self, ev, data): sent.append((ev, data))
+
+    actions.run({"type": "macro", "steps": [
+        {"type": "ha_toggle", "entity": "light.a"},
+        {"type": "ha_event", "event": "keypad_studio", "data": '{"key": 1}', "wait": 10},
+        {"type": "none"}]}, HA, None)
+    assert sent == ["homeassistant.toggle", ("keypad_studio", {"key": 1})], sent
+    for bad in ({"type": "macro", "steps": [{"type": "macro"}]}, {"type": "ha_event", "event": "x", "data": "[1]"}):
+        try:
+            actions.run(bad, HA, None); raise AssertionError(bad)
+        except actions.ActionError:
+            pass
+    assert config.validate(config.DEFAULT)["profiles"][0]["keys"][0]["double"] == {"type": "none"}
 
 
 def test_knob_press():
@@ -274,11 +308,28 @@ def test_config():
 
 def test_light():
     from keypadstudio.device import light_config
+    from keypadstudio.lighting import firmware as _fw
     c = light_config("#ff0000", "steady", 1)
     assert (c.mode, c.brightness, c.color, c.h, c.s, c.v) == (1, 1, 1, 0, 100, 100)
     assert light_config("#4f8cff", "breath", 2).mode == 2
     assert light_config("#4f8cff", "steady", 0).mode == 0  # brightness 0 = off
     assert light_config("#ff0000", "steady", 1, level=0.5).v == 50
+    rb = light_config(*_fw({"color": "#fff", "fx": "rainbow-wave", "level": 0.5})[:2], 2, level=0.5)
+    assert (rb.color, rb.mode, rb.v) == (0, 4, 50)  # palette, tidal, level still applies
+
+
+def test_home_timeout():
+    e = FakeEngine(homeProfile="desk", homeAfter=10)
+    e.cfg["active"] = "pc"
+    e._arm_home(0)
+    e._fire(5); e._handle(8, True, 5)  # activity restarts the countdown
+    e._fire(14); assert e.switched == []
+    e._handle(0, True, 20)  # still held when the deadline passes: wait
+    e._fire(30); assert e.switched == []
+    e._handle(0, False, 31)
+    e._fire(41); assert e.switched == ["desk"], e.switched
+    e.settings["homeAfter"] = 0
+    e._arm_home(50); assert "home" not in e.timers
 
 
 if __name__ == "__main__":
