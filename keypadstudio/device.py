@@ -32,6 +32,11 @@ ORIGINAL_BACKUP = Path(__file__).resolve().parent.parent / "keymap-backup.json" 
 
 def light_config(hex_color: str, mode: str, brightness: int, speed: int = 2, level: float = 1.0) -> LightConfig:
     import colorsys
+    if hex_color == "rainbow":  # firmware palette: colour=0, v still scales brightness
+        m = LED_MODES.get(mode, 1)
+        if brightness <= 0 or m == 0:
+            return LightConfig(type=1, mode=0)
+        return LightConfig(type=1, mode=m, brightness=brightness, speed=speed, color=0, h=0, s=100, v=max(1, round(100 * level)))
     h = hex_color.lstrip("#")
     r, g, b = (int(h[i:i + 2], 16) / 255 for i in (0, 2, 4))
     hh, ss, vv = colorsys.rgb_to_hsv(r, g, b)

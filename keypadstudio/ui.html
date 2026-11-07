@@ -24,11 +24,11 @@
   --body:#0a0c0f;--cap:#2a2e36;--cap-text:#e7e9ee;--cap-edge:#383e48;--shadow:none;color-scheme:dark;
 }
 *{box-sizing:border-box}
-html,body{margin:0;height:100%}
+html,body{margin:0;height:100%;overflow:hidden}  /* the window never scrolls; panels share its height */
 body{background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:var(--accent)}
-.app{display:grid;grid-template-columns:248px minmax(0,1fr);min-height:100vh}
+.app{display:grid;grid-template-columns:248px minmax(0,1fr);height:100vh;height:100dvh}
 
 /* sidebar */
 .side{background:var(--panel);border-right:1px solid var(--line);padding:16px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh;overflow:auto}
@@ -58,7 +58,7 @@ a{color:var(--accent)}
 .icon[disabled]{opacity:.3;pointer-events:none}
 
 /* main */
-main{padding:24px 28px 48px;min-width:0;max-width:1180px;width:100%;margin:0 auto}
+main{padding:16px 24px;min-width:0;min-height:0;overflow:auto;container-type:inline-size}  /* overflow only as a last resort in tiny windows */
 h1{font-size:21px;margin:0}
 h2{font-size:15px;margin:0 0 4px}
 h3{font-size:13px;margin:0 0 8px}
@@ -76,7 +76,10 @@ output{white-space:nowrap;color:var(--text);font-variant-numeric:tabular-nums}
 .f input:not([type=color]):not([type=range]):not([type=checkbox]),.f select,.f textarea,.ctl{
   background-color:var(--bg);border:1px solid var(--line);border-radius:8px;padding:7px 9px;color:var(--text);min-width:0;width:100%}
 .f textarea{min-height:64px;resize:vertical;font-family:ui-monospace,Consolas,monospace;font-size:12px}
-input[type=color]{width:44px;height:34px;padding:2px;border:1px solid var(--line);border-radius:8px;background:var(--bg);cursor:pointer;flex:none}
+input[type=color]{appearance:none;width:44px;height:34px;padding:3px;border:1px solid var(--line);border-radius:8px;background:var(--panel);cursor:pointer;flex:none;transition:border-color .15s}
+input[type=color]:hover{border-color:var(--muted)}
+input[type=color]::-webkit-color-swatch-wrapper{padding:0}
+input[type=color]::-webkit-color-swatch{border:0;border-radius:5px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
 input[type=range]{width:100%;accent-color:var(--accent)}
 input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 select{appearance:none;cursor:pointer;padding-right:30px!important;background-repeat:no-repeat;background-position:right 10px center;background-size:12px;
@@ -84,21 +87,83 @@ select{appearance:none;cursor:pointer;padding-right:30px!important;background-re
 select:hover{border-color:var(--muted)!important}
 option{background:var(--panel);color:var(--text)}
 optgroup{background:var(--panel);color:var(--muted);font-style:normal}
-/* action picker */
-.apick{display:grid;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--bg)}
-.agrp small{display:block;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:5px}
-.achips{display:flex;flex-wrap:wrap;gap:6px}
-.achip{all:unset;box-sizing:border-box;cursor:pointer;font-size:12px;color:var(--text);padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--panel);transition:border-color .12s,background .12s}
-.achip:hover{border-color:var(--muted)}
-.achip[aria-checked="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
-.achip:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+/* action menu: category tabs + option cards. The pill, the selection ring and the key ring glide between
+   positions through the View Transitions API (named elements below); content changes are instant. */
+:root{--ease:cubic-bezier(.2,.8,.2,1)}
+.amenu{display:flex;flex-direction:column;gap:10px}
+.acats,.tabs{position:relative;display:flex;gap:4px;padding:4px;border-radius:12px;background:var(--panel2);overflow-x:auto;scrollbar-width:none}
+.acat{all:unset;box-sizing:border-box;cursor:pointer;position:relative;isolation:isolate;flex:1 0 auto;display:flex;align-items:center;justify-content:center;gap:8px;
+  padding:9px 14px;border-radius:9px;font-size:13px;color:var(--muted);white-space:nowrap;transition:color .2s}
+.acat:hover{color:var(--text)}
+.acat[aria-selected="true"]{color:var(--text);font-weight:600}
+.acat svg,.aopt svg{width:17px;height:17px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+/* segmented bars (profile tabs, action categories, Press/Hold/Double) share one sliding pill look, each with its own transition name */
+.pill{position:absolute;inset:0;z-index:-1;border-radius:inherit;background:var(--panel);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.acats .pill{view-transition-name:apill}.tabs .pill{view-transition-name:tpill}.subtabs .pill{view-transition-name:spill}
+.tabs{width:fit-content;max-width:100%}
+.acat .has{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.acat:focus-visible,.aopt:focus-visible,.aclear:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.aopts{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px}
+.arow{display:flex;align-items:center;gap:10px}.arow .acats{flex:1;min-width:0}
+@media (max-height:720px){.aopt small{display:none}.aopt{align-items:center}}  /* short window: one-line cards */
+.aopt{all:unset;box-sizing:border-box;cursor:pointer;position:relative;display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;
+  border:1px solid var(--line);background:var(--panel);transition:border-color .15s}
+.aopt:hover{border-color:var(--muted)}
+.aopt .ic{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;flex:none;background:var(--accent-soft);color:var(--accent)}
+.aopt b{display:block;font-weight:600;font-size:13px;line-height:1.3}
+.aopt small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.aopt .sel{position:absolute;inset:-1px;border-radius:12px;border:2px solid var(--accent);background:var(--accent-soft);z-index:-1;view-transition-name:asel}
+.aopt[aria-checked="true"]{isolation:isolate;border-color:transparent}
+.aopt[aria-checked="true"] .ic{background:var(--accent);color:var(--accent-text)}
+.aopt .tick{position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;background:var(--accent);color:var(--accent-text);display:grid;place-items:center;font-size:11px;font-weight:700}
+.aclear{all:unset;box-sizing:border-box;flex:none;height:26px;cursor:pointer;font-size:12px;line-height:18px;color:var(--muted);padding:3px 9px;border-radius:999px;border:1px solid var(--line);transition:color .15s,border-color .15s}
+.aclear:hover{color:var(--danger);border-color:var(--danger)}
+.go .aopt{animation:fade .18s ease-out backwards}
+.adetail{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;align-items:start}
+.adetail>:is(.note,div:not(.f)),.adetail>.f:has(.step,textarea){grid-column:1/-1}
+.adetail.go{animation:fade .18s ease-out backwards}
+.stage{display:flex;flex-direction:column;align-items:center;gap:8px;flex:none}
+@media (max-height:899px){.stage .hint{display:none}}
+/* profile view: header, keypad, then one panel that takes the remaining height; its columns scroll on their own if ever needed */
+.pview{display:flex;flex-direction:column;gap:12px;height:100%;min-height:500px;max-width:1240px;margin:0 auto}
+.pview>.banner,.pview>.card{margin:0}
+.insp{flex:1;min-height:260px;display:flex;flex-direction:column;gap:10px;padding:14px 16px}
+.ihead{display:flex;align-items:center;gap:10px 14px;flex-wrap:wrap}
+.ihead h2{margin:0}.ihead .desc{margin:0;font-size:12px}
+.ilabel{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted)}
+.ilabel input{width:200px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:5px 9px;color:var(--text)}
+.amenu{flex:1;min-height:0}
+.ibody{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,3fr) minmax(260px,2fr);gap:16px}
+.ibody>*{min-height:0;overflow:auto;align-content:start;padding:2px;margin:-2px}
+.ibody.lit{grid-template-columns:minmax(220px,1fr) minmax(0,1.8fr)}
+.ibody.lit>.aopts{grid-template-columns:1fr}
+.lit .fields{gap:10px}
+.lit td,.lit th{padding:3px 6px}
+.lit td input[type=color]{height:28px;width:40px}
+.lit .tscroll{margin:0;padding:0}
+.lit td .ctl,.lit td .btn{padding-top:3px;padding-bottom:3px}
+.lit .note{padding:6px 10px}
+.kbody{flex:1;min-height:0;display:grid;gap:20px}
+.kbody.two{grid-template-columns:minmax(0,1fr) minmax(0,1.4fr)}
+.kcol{min-height:0;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:2px;margin:-2px}
+.kcol .ibody{display:flex;flex-direction:column;gap:10px}.kcol .ibody>*{overflow:visible}
+.pg{columns:3 330px;column-gap:16px;max-width:1240px;margin:0 auto}
+.pg>:is(h1,.sub,.banner){column-span:all}
+.pg .card{break-inside:avoid}
+.pg .list{max-height:40vh;overflow:auto}
+@keyframes fade{from{opacity:0}}
+::view-transition-old(root){display:none}
+::view-transition-new(root){animation:none}
+::view-transition-group(*){animation-duration:.22s;animation-timing-function:var(--ease)}
+@media (prefers-reduced-motion:reduce){*,::view-transition-group(*){animation:none!important;transition:none!important}}
 .ename{font-size:11px;color:var(--muted);min-height:15px}
 .check{display:flex;gap:12px;align-items:flex-start;padding:10px 0;cursor:pointer;border-top:1px solid var(--line)}
 .check:first-child{border-top:0;padding-top:0}
 .check input{margin-top:3px;accent-color:var(--accent);flex:none}
 .check b{font-weight:550;display:block}
 .check small{color:var(--muted)}
-.btn{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;white-space:nowrap}
+.btn{display:inline-flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 12px;cursor:pointer;white-space:nowrap}
+.btn svg{width:14px;height:14px;flex:none;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .btn:hover{border-color:var(--muted)}
 .btn:disabled{opacity:.5;cursor:default}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
@@ -107,8 +172,6 @@ optgroup{background:var(--panel);color:var(--muted);font-style:normal}
 .note{font-size:12px;color:var(--muted);background:var(--panel2);border-radius:8px;padding:8px 10px;margin:0}
 .banner{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--danger);border-radius:8px;padding:10px 12px;margin-bottom:16px}
 .banner.warn{border-left-color:var(--warn)}
-.grid2{display:grid;grid-template-columns:minmax(0,auto) minmax(0,1fr);gap:24px;align-items:start}
-.sticky{position:sticky;top:20px}
 kbd{font-family:ui-monospace,Consolas,monospace;font-size:12px;background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:0 5px}
 table{border-collapse:collapse;width:100%;font-size:13px}
 td,th{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
@@ -117,34 +180,39 @@ th{color:var(--muted);font-weight:500;font-size:12px}
 td input[type=number]{width:80px}
 
 /* profile header */
-.phead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:6px}
-.phead .title{all:unset;font-size:21px;font-weight:650;min-width:120px;flex:0 1 340px;border-radius:6px;padding:2px 6px;margin-left:-6px}
+.phead{display:flex;align-items:center;gap:12px;flex-wrap:nowrap;padding:10px 12px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}
+.phead input[type=color]{width:40px;height:40px;border-radius:10px;padding:3px}
+.phead input[type=color]::-webkit-color-swatch{border-radius:7px}
+.phead .title{all:unset;font-size:20px;font-weight:650;min-width:80px;flex:0 1 220px;border-radius:6px;padding:2px 6px;margin-left:-6px}
 .phead .title:hover{background:var(--panel2)}
 .phead .title:focus{background:var(--panel);outline:2px solid var(--accent)}
 .phead .spacer{flex:1}
+.phead .chip{display:block;min-width:0;flex:0 1 auto;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+.phead .chip .swatch,.phead .chip .dot{display:inline-block;vertical-align:-1px;margin-right:6px}
+.phead>:not(.chip,.title,.spacer){flex:none}
+@container (max-width:1000px){.phead .lbl{display:none}}  /* icon-only buttons; title/aria-label keep the names */
+@container (max-width:700px){.phead{flex-wrap:wrap}.phead .tabs{order:2;flex:1 1 100%}.phead .chip{display:none}.phead .title{flex:1 1 0}}
 .chip{display:inline-flex;align-items:center;gap:7px;font-size:12px;padding:4px 10px;border-radius:999px;background:var(--panel);border:1px solid var(--line);color:var(--muted);white-space:nowrap}
 .chip.on{color:var(--text)}
-.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:14px 0 20px}
-.tabs button{all:unset;cursor:pointer;padding:8px 14px;border-bottom:2px solid transparent;color:var(--muted);margin-bottom:-1px}
-.tabs button:hover{color:var(--text)}
-.tabs button[aria-selected="true"]{border-color:var(--accent);color:var(--text);font-weight:600}
-.tabs button:focus-visible{outline:2px solid var(--accent)}
 .subtabs{display:inline-flex;background:var(--panel2);border-radius:8px;padding:3px;gap:2px}
-.subtabs button{all:unset;cursor:pointer;padding:4px 14px;border-radius:6px;font-size:13px;color:var(--muted)}
-.subtabs button[aria-selected="true"]{background:var(--panel);color:var(--text);font-weight:600;box-shadow:var(--shadow)}
+.subtabs button{all:unset;cursor:pointer;position:relative;isolation:isolate;padding:4px 14px;border-radius:6px;font-size:13px;color:var(--muted);transition:color .2s}
+.subtabs button:hover,.subtabs button[aria-selected="true"]{color:var(--text)}
+.subtabs button[aria-selected="true"]{font-weight:600}
+.subtabs button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
 /* option tiles */
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px}
-.tile{all:unset;box-sizing:border-box;cursor:pointer;border:1px solid var(--line);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:4px;background:var(--panel)}
+.tile{all:unset;box-sizing:border-box;cursor:pointer;position:relative;border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:2px;background:var(--panel);transition:border-color .15s}
 .tile:hover{border-color:var(--muted)}
 .tile[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
+.tile[aria-pressed="true"]::after{content:"✓";position:absolute;top:8px;right:8px;width:18px;height:18px;border-radius:50%;background:var(--accent);color:var(--accent-text);display:grid;place-items:center;font-size:11px;font-weight:700}
 .tile:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.tile b{font-weight:600}
+.tile b{font-weight:600;font-size:13px}
 .tile small{color:var(--muted);font-size:12px}
 
 /* keypad drawing */
 .pad{display:flex;flex-direction:column;align-items:center;gap:12px}
-.pad-body{--k:78px;background:var(--body);border-radius:22px;padding:calc(var(--k) * .26);display:grid;
+.pad-body{--k:clamp(44px, calc(12vh - 24px), 80px);background:var(--body);border-radius:22px;padding:calc(var(--k) * .26);display:grid;
   grid-template-columns:repeat(3,var(--k)) calc(var(--k) * 1.33);grid-template-rows:var(--k) var(--k);gap:calc(var(--k) * .15);align-items:center;justify-items:center;
   box-shadow:0 10px 30px -12px rgba(0,0,0,.5)}
 .pad.flip .pad-body{grid-template-columns:calc(var(--k) * 1.33) repeat(3,var(--k))}
@@ -154,13 +222,16 @@ td input[type=number]{width:80px}
 .key::after{content:"";position:absolute;left:12px;right:12px;bottom:5px;height:3px;border-radius:2px;background:var(--led,transparent)}
 .key b{font-size:12px;font-weight:600;line-height:1.15;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 .key small{font-size:9px;opacity:.6}
-.key[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:3px}
+.key{transition:transform .2s var(--ease)}
+.key:hover{transform:translateY(-2px)}
+.key:active,.knob:active{transform:scale(.94);transition-duration:.08s}
+.ring{position:absolute;inset:-6px;border-radius:15px;border:2px solid var(--accent);pointer-events:none;view-transition-name:kring}
+.knob .ring{border-radius:50%}
 .key:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .knob-wrap{grid-row:1/3;display:flex;flex-direction:column;align-items:center;gap:8px}
 .knob{all:unset;cursor:pointer;width:calc(var(--k) * 1.08);height:calc(var(--k) * 1.08);border-radius:50%;position:relative;
   background:radial-gradient(circle at 40% 35%,#5b616c,#2a2e35 70%);box-shadow:0 4px 10px rgba(0,0,0,.5),0 0 0 3px #15171b,0 0 26px -2px var(--led,transparent)}
 .knob::after{content:"";position:absolute;left:50%;top:8px;width:3px;height:18px;margin-left:-1.5px;border-radius:2px;background:#e9ecf1}
-.knob[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:4px}
 .knob:focus-visible{outline:2px solid var(--accent);outline-offset:4px}
 .knob-cap{font-size:10px;color:#9aa1ae;text-align:center;max-width:100px;line-height:1.2}
 .hint{font-size:12px;color:var(--muted);text-align:center;max-width:380px;margin:0}
@@ -185,7 +256,7 @@ ol.flow{margin:0;padding-left:20px;display:grid;gap:8px}
 #toast.err{background:#b42323;color:#fff}  /* fixed red: --danger is too light under white text in dark mode */
 .err{color:var(--danger)!important}
 .saved.err{font-weight:600}
-#offline{position:sticky;top:0;z-index:8;background:#b42323;color:#fff;font-size:13px;padding:8px 16px;text-align:center}
+#offline{position:fixed;top:0;left:0;right:0;z-index:8;background:#b42323;color:#fff;font-size:13px;padding:8px 16px;text-align:center}
 .tscroll{overflow-x:auto;margin:0 -4px;padding:0 4px}
 .tscroll table{min-width:420px}
 .tscroll td{white-space:nowrap}
@@ -193,27 +264,33 @@ ol.flow{margin:0;padding-left:20px;display:grid;gap:8px}
 .plist .addp{display:none}
 
 @media (max-width:960px){
-  .app{grid-template-columns:208px minmax(0,1fr)}
-  main{padding:20px 20px 40px}
-  .grid2{grid-template-columns:1fr} .sticky{position:static}
+  .app{grid-template-columns:200px minmax(0,1fr)}
+  main{padding:14px 16px}
 }
-/* narrow window / phone: sidebar becomes a compact header with scrolling chip rows */
+/* narrow window / phone: the sidebar becomes one top bar: logo + status dots, profiles, icon-only pages */
 @media (max-width:720px){
-  .app{grid-template-columns:1fr}
-  .side{position:static;height:auto;border-right:0;border-bottom:1px solid var(--line);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;padding:12px 16px}
-  .brand{padding:0}
-  .saved{grid-row:1;grid-column:2;margin:0;padding:0;align-self:center;text-align:right;max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .status{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:4px 16px;border:0;padding:0;margin:0}
+  .app{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr)}
+  .side{position:static;height:auto;flex-direction:row;align-items:center;gap:8px;padding:8px 12px;border-right:0;border-bottom:1px solid var(--line);overflow:visible}
+  .brand{padding:0;font-size:0;gap:0}.brand i{font-size:13px}
+  .status{flex-direction:column;gap:5px;border:0;padding:0;margin:0}.status span:not(.dot){display:none}
   .sec{display:none}
-  .plist,.nav{grid-column:1/-1;flex-direction:row;overflow-x:auto;scrollbar-width:none;gap:6px;margin:0 -16px;padding:0 16px}
+  .plist,.nav{flex-direction:row;overflow-x:auto;scrollbar-width:none;gap:2px;padding:3px;border-radius:12px;background:var(--panel2)}
+  .plist{flex:1;min-width:0}.nav{flex:none}
   .plist li,.nav li{flex:none}
-  .plist .pick,.nav button{border:1px solid var(--line);border-radius:999px;padding:6px 12px;width:auto}
+  .plist .pick,.nav button{border-radius:9px;padding:6px 10px;width:auto;color:var(--muted);transition:color .2s}
+  .nav button span{display:none}
+  .plist .pick:hover,.nav button:hover{background:none;color:var(--text)}
+  .nav button[aria-current="true"],.plist li.on .pick{background:var(--panel);color:var(--text);box-shadow:0 1px 3px rgba(0,0,0,.12)}
   .plist .kind,.plist .mv{display:none!important}
   .plist .addp{display:flex}
-  .plist .addp .pick{border-style:dashed;color:var(--muted)}
-  main{padding:16px 16px 40px}
-  .phead .title{flex:1 1 160px}
-  .pad-body{--k:min(62px,calc((100vw - 32px) / 5.4))}
+  .plist .addp .pick{color:var(--accent)}
+  .saved{display:none}
+  .saved.err{display:block;position:fixed;left:12px;right:12px;bottom:12px;margin:0;background:#b42323;color:#fff;border-radius:10px;padding:8px 12px;z-index:9}
+  main{padding:12px}
+  .pad-body{--k:min(clamp(44px, calc(12vh - 24px), 80px), calc((100vw - 24px) / 5.4))}
+  .ibody,.kbody.two{display:block;overflow:auto}  /* stacked: one scrolling panel instead of two side by side */
+  .ibody>*,.kbody>*{overflow:visible;margin:0 0 12px}
+  .ilabel input{width:140px}
   .tiles{grid-template-columns:repeat(auto-fit,minmax(140px,1fr))}
   dialog{padding:16px;width:calc(100vw - 16px)}
   #toast{left:12px;right:12px;bottom:12px;max-width:none}
@@ -222,7 +299,7 @@ ol.flow{margin:0;padding-left:20px;display:grid;gap:8px}
 @media (pointer:coarse){
   .btn,.btn.sm{padding:9px 14px}
   .icon{padding:8px 10px}
-  .achip{padding:8px 13px}
+  .aopt{padding:14px}
   .nav button,.plist .pick{padding:9px 12px}
 }
 </style>
@@ -261,32 +338,40 @@ async function api(path, method = 'GET', body) {
 }
 
 /* ---------- catalogues ---------- */
+const svg = d => `<svg viewBox="0 0 24 24">${d}</svg>`;
+const GICON = {
+  'Lights': svg('<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>'),
+  'Climate & air': svg('<path d="M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h7"/>'),
+  'Home Assistant': svg('<path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
+  'PC': svg('<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/>'),
+  'Keypad': svg('<rect x="2" y="6" width="20" height="12" rx="3"/><path d="M6 10h2M10 10h2M6 14h2M10 14h2"/><circle cx="17" cy="12" r="2.5"/>'),
+};
 const ent = (domain = 'any', l = 'Entity') => ({k:'entity', l, t:'entity', domain});
 const CYCLE = ['#ff3b30', '#ff9500', '#ffcc00', '#34c759', '#03b8fc', '#5856d6', '#ff2d92', '#ffffff'];
 const ACTIONS = {
   none:            {g:'General',        l:'Do nothing', f:[]},
-  ha_light:        {g:'Lights',         l:'Set light colour & brightness', f:[ent('light','Light'), {k:'color',l:'Colour',t:'color',d:'#ffb46b'}, {k:'brightness',l:'Brightness',t:'range',min:1,max:100,d:80,unit:'%'}]},
-  ha_white:        {g:'Lights',         l:'Set light to white', f:[ent('light','Light'), {k:'kelvin',l:'Warmth (2700 = warm, 6500 = cool)',t:'range',min:2000,max:6500,d:4000,unit:' K'}, {k:'brightness',l:'Brightness',t:'range',min:1,max:100,d:80,unit:'%'}]},
-  ha_color_cycle:  {g:'Lights',         l:'Cycle through colours', f:[ent('light','Light'), {k:'count',l:'How many colours',t:'range',min:2,max:8,d:4,unit:''}, {k:'colors',l:'Colours',t:'colors',d:CYCLE}]},
-  ha_climate_mode: {g:'Climate & air',  l:'Set air conditioner mode', f:[ent('climate','Air conditioner'), {k:'mode',l:'Mode',t:'opt'}]},
-  ha_climate_cycle:{g:'Climate & air',  l:'Next air conditioner mode', f:[ent('climate','Air conditioner')]},
-  ha_fan_preset:   {g:'Climate & air',  l:'Set purifier / fan mode', f:[ent('fan','Purifier or fan'), {k:'preset',l:'Mode',t:'opt'}]},
-  ha_toggle:       {g:'Home Assistant', l:'Turn on / off', f:[ent()]},
-  ha_scene:        {g:'Home Assistant', l:'Activate scene', f:[ent('scene','Scene')]},
-  ha_automation:   {g:'Home Assistant', l:'Trigger automation', f:[ent('automation','Automation')]},
-  ha_script:       {g:'Home Assistant', l:'Run script', f:[ent('script','Script')]},
-  ha_event:        {g:'Home Assistant', l:'Send event to Home Assistant', f:[{k:'event',l:'Event name (use it as an automation trigger)',t:'text',d:'keypad_studio',ph:'keypad_studio'}, {k:'data',l:'Event data (JSON)',t:'textarea',d:'{"key": "desk_1"}'}], note:'event'},
-  ha_service:      {g:'Home Assistant', l:'Call any service (advanced)', f:[{k:'service',l:'Service',t:'text',ph:'light.turn_on'}, ent(), {k:'data',l:'Extra data (JSON)',t:'textarea',ph:'{"transition": 2}'}]},
-  launch:          {g:'PC', l:'Launch application', f:[{k:'path',l:'Program, shortcut or file',t:'file',ph:'C:\\Program Files\\App\\app.exe'}, {k:'args',l:'Arguments (optional)',t:'text'}]},
-  url:             {g:'PC', l:'Open website', f:[{k:'url',l:'Address',t:'text',ph:'https://'}]},
-  hotkey:          {g:'PC', l:'Send keyboard shortcut', f:[{k:'keys',l:'Shortcut (click, then press keys)',t:'capture'}]},
-  text:            {g:'PC', l:'Type text', f:[{k:'text',l:'Text',t:'textarea'}]},
-  media:           {g:'PC', l:'Media control', f:[{k:'cmd',l:'Command',t:'select',d:'play_pause',opts:{play_pause:'Play / pause',next:'Next track',prev:'Previous track',mute:'Mute speakers',mic:'Mute / unmute microphone'}}]},
-  audio_out:       {g:'PC', l:'Switch audio output', f:[{k:'device',l:'Cycle between these outputs (one per line, part of the name is enough)',t:'textarea',ph:'Realtek\nLG ULTRAWIDE'}], note:'outputs'},
-  command:         {g:'PC', l:'Run PowerShell command', f:[{k:'cmd',l:'Command',t:'textarea',ph:'Start-Process notepad'}, {k:'hidden',l:'Run without a window',t:'bool',d:true}]},
-  macro:           {g:'Keypad', l:'Macro (several actions in a row)', f:[{k:'steps',l:'Steps',t:'steps',d:[]}]},
-  profile:         {g:'Keypad', l:'Go to profile', f:[{k:'profile',l:'Profile',t:'profile'}]},
-  timer:           {g:'Keypad', l:'Focus timer (press again to cancel)', f:[{k:'minutes',l:'Minutes',t:'range',min:5,max:90,d:25,unit:' min'}]},
+  ha_light:        {g:'Lights',         l:'Set light colour & brightness', h:'Any colour, any brightness', f:[ent('light','Light'), {k:'color',l:'Colour',t:'color',d:'#ffb46b'}, {k:'brightness',l:'Brightness',t:'range',min:1,max:100,d:80,unit:'%'}]},
+  ha_white:        {g:'Lights',         l:'Set light to white', h:'Warm to cool white', f:[ent('light','Light'), {k:'kelvin',l:'Warmth (2700 = warm, 6500 = cool)',t:'range',min:2000,max:6500,d:4000,unit:' K'}, {k:'brightness',l:'Brightness',t:'range',min:1,max:100,d:80,unit:'%'}]},
+  ha_color_cycle:  {g:'Lights',         l:'Cycle through colours', h:'Next colour on every press', f:[ent('light','Light'), {k:'count',l:'How many colours',t:'range',min:2,max:8,d:4,unit:''}, {k:'colors',l:'Colours',t:'colors',d:CYCLE}]},
+  ha_climate_mode: {g:'Climate & air',  l:'Set air conditioner mode', h:'Cool, heat, dry…', f:[ent('climate','Air conditioner'), {k:'mode',l:'Mode',t:'opt'}]},
+  ha_climate_cycle:{g:'Climate & air',  l:'Next air conditioner mode', h:'Step through the AC modes', f:[ent('climate','Air conditioner')]},
+  ha_fan_preset:   {g:'Climate & air',  l:'Set purifier / fan mode', h:'Auto, sleep, turbo…', f:[ent('fan','Purifier or fan'), {k:'preset',l:'Mode',t:'opt'}]},
+  ha_toggle:       {g:'Home Assistant', l:'Turn on / off', h:'A light, switch or plug', f:[ent()]},
+  ha_scene:        {g:'Home Assistant', l:'Activate scene', h:'Recall a saved scene', f:[ent('scene','Scene')]},
+  ha_automation:   {g:'Home Assistant', l:'Trigger automation', h:'Fire an automation now', f:[ent('automation','Automation')]},
+  ha_script:       {g:'Home Assistant', l:'Run script', h:'Run a Home Assistant script', f:[ent('script','Script')]},
+  ha_event:        {g:'Home Assistant', l:'Send event to Home Assistant', h:'Trigger your own automations', f:[{k:'event',l:'Event name (use it as an automation trigger)',t:'text',d:'keypad_studio',ph:'keypad_studio'}, {k:'data',l:'Event data (JSON)',t:'textarea',d:'{"key": "desk_1"}'}], note:'event'},
+  ha_service:      {g:'Home Assistant', l:'Call any service (advanced)', h:'Any service, with JSON data', f:[{k:'service',l:'Service',t:'text',ph:'light.turn_on'}, ent(), {k:'data',l:'Extra data (JSON)',t:'textarea',ph:'{"transition": 2}'}]},
+  launch:          {g:'PC', l:'Launch application', h:'A program, shortcut or file', f:[{k:'path',l:'Program, shortcut or file',t:'file',ph:'C:\\Program Files\\App\\app.exe'}, {k:'args',l:'Arguments (optional)',t:'text'}]},
+  url:             {g:'PC', l:'Open website', h:'Opens in your browser', f:[{k:'url',l:'Address',t:'text',ph:'https://'}]},
+  hotkey:          {g:'PC', l:'Send keyboard shortcut', h:'Ctrl, Alt, Win combos', f:[{k:'keys',l:'Shortcut (click, then press keys)',t:'capture'}]},
+  text:            {g:'PC', l:'Type text', h:'Types a snippet for you', f:[{k:'text',l:'Text',t:'textarea'}]},
+  media:           {g:'PC', l:'Media control', h:'Play, skip, mute', f:[{k:'cmd',l:'Command',t:'select',d:'play_pause',opts:{play_pause:'Play / pause',next:'Next track',prev:'Previous track',mute:'Mute speakers',mic:'Mute / unmute microphone'}}]},
+  audio_out:       {g:'PC', l:'Switch audio output', h:'Cycle speakers and headsets', f:[{k:'device',l:'Cycle between these outputs (one per line, part of the name is enough)',t:'textarea',ph:'Realtek\nLG ULTRAWIDE'}], note:'outputs'},
+  command:         {g:'PC', l:'Run PowerShell command', h:'PowerShell, hidden or not', f:[{k:'cmd',l:'Command',t:'textarea',ph:'Start-Process notepad'}, {k:'hidden',l:'Run without a window',t:'bool',d:true}]},
+  macro:           {g:'Keypad', l:'Macro (several actions in a row)', h:'Chain actions with waits', f:[{k:'steps',l:'Steps',t:'steps',d:[]}]},
+  profile:         {g:'Keypad', l:'Go to profile', h:'Jump to another profile', f:[{k:'profile',l:'Profile',t:'profile'}]},
+  timer:           {g:'Keypad', l:'Focus timer (press again to cancel)', h:'Countdown; press again to cancel', f:[{k:'minutes',l:'Minutes',t:'range',min:5,max:90,d:25,unit:' min'}]},
 };
 const KNOB = {
   volume:          {l:'System volume', s:'Volume', unit:'%', max:20},
@@ -300,12 +385,12 @@ const KNOB = {
   zoom:            {l:'Zoom (Ctrl + scroll)', s:'Zoom', unit:' steps', max:5},
   keys:            {l:'Custom shortcuts', s:'Shortcuts', unit:' presses', max:5, f:[{k:'cw',l:'Turn right sends',t:'capture'},{k:'ccw',l:'Turn left sends',t:'capture'}]},
 };
-const FX = {steady:'Steady', breathe:'Breathing, slow', pulse:'Breathing, fast', wave:'Wave, slow', rush:'Wave, fast', press:'Light up on key press', dim:'Dim', off:'Off'};
+const FX = {steady:'Steady', breathe:'Breathing, slow', pulse:'Breathing, fast', wave:'Wave, slow', rush:'Wave, fast', press:'Light up on key press', rainbow:'Rainbow', 'rainbow-breathe':'Rainbow, breathing', 'rainbow-wave':'Rainbow, wave', dim:'Dim', off:'Off'};
 const LIVE = {
-  none:    {l:'Fixed colour',    d:'Always the profile colour and effect.'},
-  light:   {l:'Follow a light',  d:'Keypad brightness (and colour) mirror a light.', domain:'light'},
-  climate: {l:'Air conditioner', d:'Colour and animation show the AC mode.', domain:'climate'},
-  air:     {l:'Air quality',     d:'Green to red from a PM2.5 sensor.', domain:'sensor'},
+  none:    {l:'Fixed colour',    d:'Always the profile colour and effect.', ic:svg('<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/>')},
+  light:   {l:'Follow a light',  d:'Keypad brightness (and colour) mirror a light.', domain:'light', ic:GICON.Lights},
+  climate: {l:'Air conditioner', d:'Colour and animation show the AC mode.', domain:'climate', ic:GICON['Climate & air']},
+  air:     {l:'Air quality',     d:'Green to red from a PM2.5 sensor.', domain:'sensor', ic:svg('<path d="M5 19c8 0 14-6 14-14C11 5 5 11 5 19zM5 19l7-7"/>')},
 };
 
 /* LED preview: an on-screen approximation of the keypad firmware's effects (the keypad animates them itself). */
@@ -315,7 +400,8 @@ function levels(fx, t) {
     case 'off': return six(0);
     case 'dim': return six(.15);
     case 'press': return six(.25);
-    case 'breathe': return six(sine(1.6));
+    case 'breathe': case 'rainbow-breathe': return six(sine(1.6));
+    case 'rainbow-wave': return wave(2.2);
     case 'pulse': return six(sine(5));
     case 'wave': return wave(2.2);
     case 'rush': return wave(6);
@@ -405,11 +491,36 @@ function field(f, base, obj = P()) {
     default:        return `<label class="f">${lab}<input ${b} value="${esc(v)}" placeholder="${esc(f.ph||'')}" spellcheck="false"></label>`;
   }
 }
-const actionSelect = (path, cur) => {
+let MOTION = '';  // one-shot: 'cards' replays the card entrance, 'detail' only the settings below; cleared after each render
+const ACAT = {};  // open category per action path, so browsing one key's menu does not move another's
+function actionSelect(path, cur, settings = '') {
   const groups = {};
-  for (const [k, a] of Object.entries(ACTIONS)) (groups[a.g] ||= []).push(`<button type="button" class="achip" role="radio" aria-checked="${k===cur}" data-atype="${k}" data-apath="${path}">${esc(a.l)}</button>`);
-  return `<div class="f"><span>Action</span><div class="apick" role="radiogroup" aria-label="Action">${Object.entries(groups).map(([g, b]) => `<div class="agrp"><small>${g}</small><div class="achips">${b.join('')}</div></div>`).join('')}</div></div>`;
+  for (const [k, a] of Object.entries(ACTIONS)) if (k !== 'none') (groups[a.g] ||= []).push(k);
+  const open = ACAT[path] || (cur !== 'none' && ACTIONS[cur]?.g) || Object.keys(groups)[0];
+  const cats = Object.keys(groups).map(g => `<button type="button" class="acat" role="tab" aria-selected="${g===open}" data-acat="${esc(g)}" data-apath="${path}">${g===open ? '<i class="pill"></i>' : ''}${GICON[g]}${esc(g)}${ACTIONS[cur]?.g===g && g!==open ? '<i class="has" title="Current action is here"></i>' : ''}</button>`).join('');
+  const opts = groups[open].map(k => { const a = ACTIONS[k], on = k === cur;
+    return `<button type="button" class="aopt" role="radio" aria-checked="${on}" data-atype="${k}" data-apath="${path}">${on ? '<i class="sel"></i><i class="tick">✓</i>' : ''}<span class="ic">${GICON[open]}</span><span><b>${esc(a.l)}</b><small>${esc(a.h || '')}</small></span></button>`; }).join('');
+  return `<div class="amenu"><div class="arow"><div class="acats" role="tablist" aria-label="Action category">${cats}</div>${cur !== 'none' ? `<button type="button" class="aclear" data-atype="none" data-apath="${path}" title="Remove the ${esc(ACTIONS[cur]?.l)} action">Clear</button>` : ''}</div>
+    <div class="ibody"><div class="aopts${MOTION ? ' go' : ''}" role="radiogroup" aria-label="Action">${opts}</div>${detail(settings)}</div></div>`;
+}
+const detail = html => `<div class="adetail${MOTION ? ' go' : ''}">${html}</div>`;
+// glide the selection pill/ring between positions; plain swap where unsupported or motion is reduced
+let VT = null;
+const morph = fn => {
+  VT?.skipTransition();
+  if (!document.startViewTransition || matchMedia('(prefers-reduced-motion: reduce)').matches) return fn();
+  const t = VT = document.startViewTransition(fn);
+  t.ready.catch(() => {});  // rejects when skipped; nothing to handle
+  t.finished.finally(() => { if (VT === t) VT = null; });
 };
+// While a transition runs Chrome hit-tests every click to <html>; finish it at once and replay the click where it landed.
+document.addEventListener('click', e => {
+  if (!VT || e.target !== document.documentElement) return;
+  const {clientX: x, clientY: y} = e;
+  VT.skipTransition();
+  VT.finished.finally(() => document.elementFromPoint(x, y)?.dispatchEvent(new MouseEvent('click', {bubbles: true, clientX: x, clientY: y})));
+}, true);
+const withMotion = (k, fn) => morph(() => { MOTION = k; try { fn(); } finally { MOTION = ''; } });
 const fxSelect = (path, cur) => `<select class="ctl" data-bind="${path}">${Object.entries(FX).map(([k, l]) => `<option value="${k}" ${k===cur?'selected':''}>${l}</option>`).join('')}</select>`;
 const summary = a => {
   if (!a || a.type === 'none') return '';
@@ -428,7 +539,7 @@ const kindLabel = p => p.live?.type && p.live.type !== 'none' ? LIVE[p.live.type
 /* ---------- sidebar ---------- */
 const NAV = [['ha','Home Assistant'],['device','Keypad'],['settings','Settings'],['help','Help']];
 function renderSide() {
-  setHTML($('#nav'), NAV.map(([k, l]) => `<li><button data-view="${k}" aria-current="${view===k}">${ICON[k]}${l}</button></li>`).join(''));
+  setHTML($('#nav'), NAV.map(([k, l]) => `<li><button data-view="${k}" aria-current="${view===k}" title="${l}">${ICON[k]}<span>${l}</span></button></li>`).join(''));
   setHTML($('#plist'), S.profiles.map((p, i) => `<li class="${p.id===S.active&&view==='profile'?'on':''}">
     <button class="pick" data-pick="${p.id}" aria-current="${p.id===S.active&&view==='profile'}"><span class="swatch" style="background:${esc(p.color)}"></span><span class="name">${esc(p.name)}</span><span class="kind">${p.id===S.active?'● active':''}</span></button>
     <span class="mv"><button class="icon" data-move="${i},-1" aria-label="Move ${esc(p.name)} up" ${i?'':'disabled'}>▲</button><button class="icon" data-move="${i},1" aria-label="Move ${esc(p.name)} down" ${i<S.profiles.length-1?'':'disabled'}>▼</button></span></li>`).join('')
@@ -447,9 +558,9 @@ function padHTML(p) {
   const flip = !!S.settings.flip, k = KNOB[p.knob.type] || KNOB.volume;
   return `<div class="pad${flip ? ' flip' : ''}">
     <div class="pad-body">
-      ${p.keys.map((kk, i) => `<button class="key" data-key="${i}" aria-pressed="${sel.kind==='key'&&sel.i===i}" style="grid-column:${i%3+(flip?2:1)};grid-row:${(i/3|0)+1}">
+      ${p.keys.map((kk, i) => `<button class="key" data-key="${i}" aria-pressed="${sel.kind==='key'&&sel.i===i}" style="grid-column:${i%3+(flip?2:1)};grid-row:${(i/3|0)+1}">${sel.kind==='key'&&sel.i===i ? '<i class="ring"></i>' : ''}
         ${S.settings.mode === 'keys' ? `<b>${esc(S.profiles[i]?.name || '—')}</b><small>profile</small>` : `<b>${esc(kk.label || summary(kk.tap) || 'Key '+(i+1))}</b><small>${[kk.hold.type!=='none'&&'+ hold', kk.double?.type&&kk.double.type!=='none'&&'+ 2×'].filter(Boolean).join(' ')}</small>`}</button>`).join('')}
-      <div class="knob-wrap" style="grid-column:${flip?1:4}"><button class="knob" data-knob aria-pressed="${sel.kind==='knob'}" aria-label="Edit knob"></button><span class="knob-cap">${esc(k.s)}${p.knob.entity ? '<br>' + esc(ename(p.knob.entity) || p.knob.entity) : ''}</span></div>
+      <div class="knob-wrap" style="grid-column:${flip?1:4}"><button class="knob" data-knob aria-pressed="${sel.kind==='knob'}" aria-label="Edit knob">${sel.kind==='knob' ? '<i class="ring"></i>' : ''}</button><span class="knob-cap">${esc(k.s)}${p.knob.entity ? '<br>' + esc(ename(p.knob.entity) || p.knob.entity) : ''}</span></div>
     </div>
   </div>`;
 }
@@ -464,7 +575,10 @@ function animate() {
   if (pad && S) {
     const lk = padLook(P()), ks = levels(lk.fx, (performance.now() - T0) / 1000), [r, g, b] = hex2rgb(lk.color);
     const lvl = (S.settings.ledBrightness > 0 ? 1 : 0) * (lk.level ?? 1);
-    pad.querySelectorAll('.key').forEach((el, i) => el.style.setProperty('--led', `rgba(${r},${g},${b},${(ks[i] * lvl).toFixed(3)})`));
+    const t = (performance.now() - T0) / 1000, rb = String(lk.fx).startsWith('rainbow');
+    pad.querySelectorAll('.key').forEach((el, i) => el.style.setProperty('--led', rb
+      ? `hsla(${(t * 60 + i * 60) % 360},100%,55%,${(ks[i] * lvl).toFixed(3)})`
+      : `rgba(${r},${g},${b},${(ks[i] * lvl).toFixed(3)})`));
     pad.querySelector('.knob')?.style.setProperty('--led', `rgba(${r},${g},${b},${(.7 * lvl).toFixed(3)})`);
   }
   requestAnimationFrame(animate);
@@ -481,41 +595,39 @@ function liveChip(p) {
 }
 
 function inspectorHTML(p) {
+  const run = t => t !== 'none' ? `<div><button class="btn" data-act="test">Run now</button></div>` : '';
   if (sel.kind === 'knob') {
     const k = KNOB[p.knob.type] || KNOB.volume;
     const keysMode = S.settings.mode === 'keys', pr = p.knob.press ||= {type:'none'};
-    const press = keysMode ? `<h2 style="margin-top:20px">Pressing the knob</h2><div class="fields">
-      ${actionSelect('knob.press.type', pr.type)}
-      ${(ACTIONS[pr.type] || ACTIONS.none).f.map(f => field(f, 'knob.press')).join('')}
-      ${pr.type!=='none' ? `<div><button class="btn" data-act="test">Run now</button></div>` : ''}</div>` : '';
-    return `<div class="card"><h2>Knob</h2><p class="desc">What turning does in this profile. ${keysMode ? 'The keys switch profile.' : 'Pressing the knob switches profile.'}</p><div class="fields">
-      <label class="f"><span>Turning controls</span><select data-bind="knob.type" data-retype>${Object.entries(KNOB).map(([v, o]) => `<option value="${v}" ${v===p.knob.type?'selected':''}>${esc(o.l)}</option>`).join('')}</select></label>
+    const press = keysMode ? `<div class="kcol"><h3 style="margin:0">Pressing the knob</h3>
+      ${actionSelect('knob.press.type', pr.type, (ACTIONS[pr.type] || ACTIONS.none).f.map(f => field(f, 'knob.press')).join('') + audioNote(ACTIONS[pr.type]?.note) + run(pr.type))}</div>` : '';
+    return `<div class="card insp"><div class="ihead"><h2>Knob</h2><p class="desc">What turning does in this profile. ${keysMode ? 'The keys switch profile.' : 'Pressing the knob switches profile.'}</p></div>
+      <div class="kbody${keysMode ? ' two' : ''}"><div class="kcol">${detail(`<label class="f"><span>Turning controls</span><select data-bind="knob.type" data-retype>${Object.entries(KNOB).map(([v, o]) => `<option value="${v}" ${v===p.knob.type?'selected':''}>${esc(o.l)}</option>`).join('')}</select></label>
       ${(k.f||[]).map(f => field(f, 'knob')).join('')}
       ${audioNote(k.note)}
       ${field({k:'step', l:'Strength (change per step)', t:'range', min:1, max:k.max, unit:k.unit}, 'knob')}
       ${field({k:'sens', l:'Sensitivity', t:'select', opts:{1:'Every click of the knob', 2:'Every 2 clicks', 3:'Every 3 clicks'}}, 'knob')}
       ${field({k:'accel', l:'Speed up when turned fast', t:'bool'}, 'knob')}
-      ${field({k:'invert', l:'Reverse direction', t:'bool'}, 'knob')}
-    </div>${press}</div>`;
+      ${field({k:'invert', l:'Reverse direction', t:'bool'}, 'knob')}`)}</div>${press}</div></div>`;
   }
   const kk = p.keys[sel.i], a = kk[slot] ||= {type:'none'}, base = `keys.${sel.i}.${slot}`;
-  return `<div class="card"><div class="row" style="justify-content:space-between;margin-bottom:12px"><h2 style="margin:0">Key ${sel.i + 1}</h2>
-      <div class="subtabs" role="tablist"><button role="tab" data-slot="tap" aria-selected="${slot==='tap'}">Press</button><button role="tab" data-slot="hold" aria-selected="${slot==='hold'}">Hold${kk.hold.type!=='none'?' ●':''}</button><button role="tab" data-slot="double" aria-selected="${slot==='double'}">Double${kk.double?.type&&kk.double.type!=='none'?' ●':''}</button></div></div>
+  const tab = (k, l, on) => `<button role="tab" data-slot="${k}" aria-selected="${slot===k}">${slot===k ? '<i class="pill"></i>' : ''}${l}${on ? ' ●' : ''}</button>`;
+  return `<div class="card insp"><div class="ihead"><h2>Key ${sel.i + 1}</h2>
+      <label class="ilabel">Label<input data-bind="keys.${sel.i}.label" value="${esc(kk.label)}" placeholder="${esc(summary(kk.tap) || 'Name shown on the key')}"></label>
+      <span class="spacer" style="flex:1"></span>
+      <div class="subtabs" role="tablist">${tab('tap', 'Press')}${tab('hold', 'Hold', kk.hold.type !== 'none')}${tab('double', 'Double', kk.double?.type && kk.double.type !== 'none')}</div></div>
     ${S.settings.mode === 'keys' ? `<p class="note">The keys switch profile right now (Settings), so this key opens ${esc(S.profiles[sel.i]?.name || 'nothing')}. The action below is kept for the other mode.</p>` : ''}
-    <div class="fields">
-    <label class="f"><span>Label on screen</span><input data-bind="keys.${sel.i}.label" value="${esc(kk.label)}" placeholder="${esc(summary(kk.tap) || 'Name shown on the key')}"></label>
-    ${actionSelect(base + '.type', a.type)}
-    ${(ACTIONS[a.type] || ACTIONS.none).f.map(f => field(f, base)).join('')}
+    ${actionSelect(base + '.type', a.type, `${(ACTIONS[a.type] || ACTIONS.none).f.map(f => field(f, base)).join('')}
     ${audioNote(ACTIONS[a.type]?.note)}
     ${slot==='double' ? '<p class="note">Double = press twice quickly. With a double action set, the single press waits a moment (0.3 s) before it runs, to see whether a second press follows.</p>' : ''}
     ${slot==='hold' ? '<p class="note">Hold = keep the key down for half a second. With a hold action set, the press action runs when you let go instead of instantly.</p>' : ''}
-    ${a.type!=='none' ? `<div><button class="btn" data-act="test">Run now</button></div>` : ''}
-  </div></div>`;
+    ${run(a.type)}`)}
+  </div>`;
 }
 
 function lightingHTML(p) {
   const live = p.live || {type:'none'}, t = live.type;
-  const tiles = Object.entries(LIVE).map(([k, o]) => `<button class="tile" data-live="${k}" aria-pressed="${t===k}"><b>${o.l}</b><small>${o.d}</small></button>`).join('');
+  const tiles = Object.entries(LIVE).map(([k, o]) => `<button type="button" class="aopt" role="radio" data-live="${k}" aria-checked="${t===k}">${t===k ? '<i class="sel"></i><i class="tick">✓</i>' : ''}<span class="ic">${o.ic}</span><span><b>${o.l}</b><small>${o.d}</small></span></button>`).join('');
   const prevBtn = (color, fx) => `<button class="btn sm" data-preview="${esc(color)}|${fx}">Preview</button>`;
   let detail = '';
   if (t === 'none') detail = `<div class="row" style="align-items:end">
@@ -534,7 +646,7 @@ function lightingHTML(p) {
     }).join('');
     detail = `<div class="fields">${field(ent('climate', 'Air conditioner'), 'live')}
       <div class="tscroll"><table><thead><tr><th>Mode</th><th>Colour</th><th>Animation</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-      <p class="note">“Off” uses the profile colour, dimmed. Each mode has its own colour and animation so you can tell them apart at a glance. The preview on the left is an approximation of the keypad’s own effects.</p></div>`;
+      <p class="note" title="Each mode has its own colour and animation so you can tell them apart at a glance. The keypad preview above approximates the keypad’s own effects.">“Off” uses the profile colour, dimmed. The preview above is approximate.</p></div>`;
   } else if (t === 'air') {
     const bands = live.bands || LT.air;
     const rows = bands.map((b, i) => `<tr><td><input class="ctl" data-bind="live.bands.${i}.name" value="${esc(b.name)}" style="width:110px"></td>
@@ -544,39 +656,41 @@ function lightingHTML(p) {
       <div class="tscroll"><table><thead><tr><th>Level</th><th>PM2.5 (µg/m³)</th><th>Colour</th><th>Animation</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
       <p class="note">Default limits follow the US EPA PM2.5 scale. The keypad pulses red when the air is unhealthy.</p></div>`;
   }
-  return `<div class="card"><h2>What the keypad light shows</h2><p class="desc">Applies while this profile is active. The colour is also used for the tray icon and on-screen name.</p><div class="tiles">${tiles}</div></div>
-    <div class="card">${detail}${PREVIEW ? `<p class="note" style="margin-top:12px">Previewing on screen only. <a href="#" data-act="stopPreview">Stop preview</a></p>` : ''}</div>`;
+  return `<div class="card insp"><div class="ihead"><h2>What the keypad light shows</h2><p class="desc">Applies while this profile is active. The colour is also used for the tray icon and on-screen name.</p></div>
+    <div class="ibody lit"><div class="aopts${MOTION ? ' go' : ''}" role="radiogroup" aria-label="What the keypad light shows">${tiles}</div>
+    <div>${detail}${PREVIEW ? `<p class="note" style="margin-top:12px">Previewing on screen only. <a href="#" data-act="stopPreview">Stop preview</a></p>` : ''}</div></div></div>`;
 }
 
 function viewProfile() {
   const p = P();
-  const tabs = [['controls','Keys & knob'],['lighting','Lighting'],['switching','Auto-switch']];
+  const tabs = [['controls','Keys & knob',GICON.Keypad],['lighting','Lighting',GICON.Lights],['switching','Auto-switch',svg('<rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18M9 13h6M13 11l2 2-2 2"/>')]];
   let body;
-  if (ptab === 'controls') body = `<div class="grid2"><div class="sticky">${padHTML(p)}<p class="hint" style="margin-top:12px">Click a key or the knob to change what it does. Changes save automatically and work on the keypad straight away.</p></div><div id="insp">${inspectorHTML(p)}</div></div>`;
-  else if (ptab === 'lighting') body = `<div class="grid2"><div class="sticky">${padHTML(p)}</div><div>${lightingHTML(p)}</div></div>`;
+  if (ptab === 'controls') body = `<div class="stage">${padHTML(p)}<p class="hint">Click a key or the knob to change what it does. Changes save automatically and work on the keypad straight away.</p></div>${inspectorHTML(p)}`;
+  else if (ptab === 'lighting') body = `<div class="stage">${padHTML(p)}</div>${lightingHTML(p)}`;
   else body = `<div class="card" style="max-width:640px"><h2>Switch to this profile automatically</h2><p class="desc">When one of these programs is in front, the keypad switches here, and back when you leave it.</p>
       <div class="fields"><label class="f"><span>Programs</span><input data-bind="apps" value="${esc(p.apps)}" placeholder="e.g. Photoshop.exe, Spotify.exe" spellcheck="false"></label>
       ${S.settings.autoSwitch ? '' : '<p class="note">Automatic switching is turned off. <a href="#" data-act="enableAuto">Turn it on</a></p>'}</div></div>`;
-  $('#main').innerHTML = banner() + `
+  $('#main').innerHTML = `<div class="pview">${banner()}
     <div class="phead">
       <input type="color" data-bind="color" value="${esc(p.color)}" title="Profile colour" aria-label="Profile colour">
       <input class="title" data-bind="name" value="${esc(p.name)}" aria-label="Profile name">
       ${liveChip(p)}
       <span class="spacer"></span>
-      <span class="row" style="gap:8px;margin-left:auto"><button class="btn sm" data-act="dupProfile">Duplicate</button>
-      <button class="btn sm danger" data-act="delProfile" ${S.profiles.length<2?'disabled title="Keep at least one profile"':''}>Delete</button></span>
+      <div class="tabs" role="tablist">${tabs.map(([k, l, ic]) => `<button class="acat" role="tab" data-ptab="${k}" aria-selected="${ptab===k}">${ptab===k ? '<i class="pill"></i>' : ''}${ic}${l}</button>`).join('')}</div>
+      <span class="row" style="gap:8px"><button class="btn sm" data-act="dupProfile" title="Duplicate profile" aria-label="Duplicate profile">${svg('<rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>')}<span class="lbl">Duplicate</span></button>
+      <button class="btn sm danger" data-act="delProfile" aria-label="Delete profile" ${S.profiles.length<2?'disabled title="Keep at least one profile"':''}>${svg('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-13M9 7V4h6v3"/>')}<span class="lbl">Delete</span></button></span>
     </div>
-    <div class="tabs" role="tablist">${tabs.map(([k, l]) => `<button role="tab" data-ptab="${k}" aria-selected="${ptab===k}">${l}</button>`).join('')}</div>
-    ${body}`;
+    ${body}</div>`;
 }
 
+const page = html => { $('#main').innerHTML = `<div class="pg">${html}</div>`; };
 const banner = () => !ST.connected ? `<div class="banner warn">The keypad is not plugged in. You can still edit profiles; they apply as soon as it is connected.</div>` : '';
 
 /* ---------- other views ---------- */
 function viewHA() {
   const list = (title, items) => items.length ? `<div><h3>${title}</h3><div class="list">${items.map(e => `<div>${esc(e.name || e.id)}<span>${esc(e.id)}</span></div>`).join('')}</div></div>` : '';
   const haOk = Object.keys(ENTS).length > 0;
-  $('#main').innerHTML = `<h1>Home Assistant</h1><p class="sub">Keypad Studio talks to Home Assistant over its local API to control devices and read their state for the keypad light.</p>
+  page(`<h1>Home Assistant</h1><p class="sub">Keypad Studio talks to Home Assistant over its local API to control devices and read their state for the keypad light.</p>
     <div class="card"><h2>Connection</h2><p class="desc">${haOk ? 'Connected.' : ST.tokenSet ? 'A token is saved, but Home Assistant has not answered yet.' : 'Not set up yet.'}</p><div class="fields" style="max-width:560px">
       <label class="f"><span>Address</span><input type="url" data-gbind="ha.url" value="${esc(S.ha.url)}" spellcheck="false"></label>
       <label class="f"><span>Long-lived access token</span><span><input type="password" id="tok" placeholder="${ST.tokenSet ? 'Saved. Paste a new one to replace it' : 'Paste token'}" autocomplete="off"><button class="btn" data-act="saveToken">Save</button>${ST.tokenSet ? '<button class="btn danger" data-act="removeToken">Remove</button>' : ''}</span></label>
@@ -586,13 +700,13 @@ function viewHA() {
     ${haOk ? `<div class="card"><h2>Devices the keypad can use</h2><p class="desc">Pick these when you set up a profile. Use “New profile” for a ready-made layout.</p>
       <div class="fields" style="grid-template-columns:repeat(auto-fit,minmax(260px,1fr))">
         ${list('Lights', entsOf('light'))}${list('Air conditioners', entsOf('climate'))}${list('Purifiers and fans', entsOf('fan'))}${list('Air quality sensors', pm25())}
-      </div></div>` : ''}`;
+      </div></div>` : ''}`);
 }
 
 function viewDevice() {
   const map = ['Key 1','Key 2','Key 3','Key 4','Key 5','Key 6','Knob press','Knob turn right','Knob turn left'];
   const flip = !!S.settings.flip;
-  $('#main').innerHTML = `<h1>Keypad</h1><p class="sub">How the keypad sits on your desk, its lights, and the one-time setup.</p>${banner()}
+  page(`<h1>Keypad</h1><p class="sub">How the keypad sits on your desk, its lights, and the one-time setup.</p>${banner()}
     <div class="card"><h2>Orientation</h2><p class="desc">If the keypad is turned around, keys are renumbered so profiles still match what you see.</p>
       <div class="tiles" style="max-width:520px">
         <button class="tile" data-flip="0" aria-pressed="${!flip}">${mini(false)}<b>Knob on the right</b><small>As it comes out of the box</small></button>
@@ -607,7 +721,7 @@ function viewDevice() {
       </tbody></table>
       <p class="note" style="margin-top:12px">After programming, the keypad only does something while Keypad Studio is running. The original layout is backed up first.</p>
       <div class="row" style="margin-top:12px"><button class="btn primary" data-act="program" ${ST.connected?'':'disabled'}>Program keypad</button><button class="btn" data-act="restore" ${ST.connected?'':'disabled'}>Restore original keys</button></div>
-    </div>`;
+    </div>`);
 }
 
 const SETTINGS = [
@@ -619,7 +733,7 @@ const SETTINGS = [
   ['Power', [['sleepLocked', 'Turn keypad lights off when the PC is locked', '']]],
 ];
 function viewSettings() {
-  $('#main').innerHTML = `<h1>Settings</h1><p class="sub">How the app behaves in the background.</p>
+  page(`<h1>Settings</h1><p class="sub">How the app behaves in the background.</p>
     ${SETTINGS.map(([title, items], gi) => `<div class="card" style="max-width:720px"><h2 style="margin-bottom:12px">${title}</h2>
       ${items.map(([k, l, d]) => `<label class="check"><input type="checkbox" data-gbind="settings.${k}" ${S.settings[k]?'checked':''}><span><b>${l}</b><small>${d}</small></span></label>`).join('')}
       ${gi === 1 ? `<label class="f" style="max-width:380px;margin-top:8px"><span>Keys and knob press</span><select data-gbind="settings.mode">
@@ -635,11 +749,11 @@ function viewSettings() {
         <label class="f" style="max-width:200px"><span>Return to it after (seconds idle)</span><input type="number" min="0" step="5" data-gbind="settings.homeAfter" value="${S.settings.homeAfter||0}"></label>
       </div><p class="note">0 = never. The countdown restarts on every key or knob use, and waits while a program’s auto-switched profile is active.</p>` : ''}</div>`).join('')}
     <div class="card" style="max-width:720px"><h2>Files</h2><p class="desc">Config and log are in <kbd>${esc((ST.logPath||'').replace(/[^\\]+$/, ''))}</kbd></p>
-      <button class="btn" data-act="export">Show config file</button></div>`;
+      <button class="btn" data-act="export">Show config file</button></div>`);
 }
 
 function viewHelp() {
-  $('#main').innerHTML = `<h1>Help</h1><p class="sub">What happens between a key press and a device reacting.</p>
+  page(`<h1>Help</h1><p class="sub">What happens between a key press and a device reacting.</p>
     <div class="card"><h2>The knob</h2><table><tbody>
       <tr><td>Turn</td><td>Whatever the profile sets: volume, brightness, AC temperature, fan speed…</td></tr>
       <tr><td>Press</td><td>${S.settings.mode === 'keys' ? 'The profile’s knob-press action (keys 1–6 pick the profile)' : 'Next profile' + (S.settings.dblPrev ? '; double-press for the previous one' : '')}</td></tr>
@@ -651,20 +765,22 @@ function viewHelp() {
       <li>It runs that key’s action: a Home Assistant call, launching a program, changing volume, and so on.</li>
       <li>The keypad light is a fixed colour, or live from Home Assistant (a light’s brightness, an AC’s mode, the air quality), checked every two seconds and right after each action. The keypad is told at most once a second, so a fast knob turn settles on the final brightness.</li>
       <li>Right-click the tray icon to switch profile, pause the keypad, open this window or quit.</li>
-    </ol></div>`;
+    </ol></div>`);
 }
 
 let lastView = '';
-const FOCUS_KEYS = ['data-view','data-pick','data-key','data-knob','data-slot','data-ptab','data-live','data-flip','data-atype','data-apath','data-bind','data-gbind','data-act'];
+const FOCUS_KEYS = ['data-view','data-pick','data-key','data-knob','data-slot','data-ptab','data-live','data-flip','data-atype','data-acat','data-apath','data-bind','data-gbind','data-act'];
 function render() {
-  const y = scrollY, same = lastView === view + ptab, a = document.activeElement;
+  const m = $('#main'), y = m.scrollTop, same = lastView === view + ptab, a = document.activeElement;
   // re-rendering replaces the DOM: put keyboard focus back on the same control
   const sig = a && a !== document.body ? FOCUS_KEYS.filter(k => a.hasAttribute(k)).map(k => `[${k}="${CSS.escape(a.getAttribute(k))}"]`).join('') : '';
   renderSide();
   ({profile:viewProfile, ha:viewHA, device:viewDevice, settings:viewSettings, help:viewHelp})[view]();
   lastView = view + ptab;
-  scrollTo(0, same ? y : 0);
+  m.scrollTop = same ? y : 0;
   if (sig) document.querySelector(sig)?.focus({preventScroll: true});
+  for (const at of document.querySelectorAll('.acat[aria-selected="true"]'))  // narrow window: keep the open category visible in its scrolling row
+    at.parentElement.scrollLeft = at.offsetLeft - (at.parentElement.clientWidth - at.offsetWidth) / 2;
 }
 const refreshPad = () => { const pad = document.querySelector('.pad'); if (pad) pad.outerHTML = padHTML(P()); renderSide(); save(); };
 
@@ -724,22 +840,25 @@ function readNew() {
 
 /* ---------- events ---------- */
 document.addEventListener('click', e => {
-  const t = e.target.closest('[data-view],[data-pick],[data-move],[data-key],[data-knob],[data-slot],[data-ptab],[data-live],[data-flip],[data-tpl],[data-preview],[data-act],[data-atype]');
+  const t = e.target.closest('[data-view],[data-pick],[data-move],[data-key],[data-knob],[data-slot],[data-ptab],[data-live],[data-flip],[data-tpl],[data-preview],[data-act],[data-atype],[data-acat]');
   if (!t) return;
   const d = t.dataset;
   if (d.view) { e.preventDefault(); view = d.view; render(); }
   else if (d.pick) { view = 'profile'; PREVIEW = null; if (S.active !== d.pick) { S.active = d.pick; ST.look = null; api('/api/activate', 'POST', {id: d.pick}).catch(err => toast(err.message)); } render(); }
   else if (d.move) { const [i, dir] = d.move.split(',').map(Number), a = S.profiles; [a[i], a[i+dir]] = [a[i+dir], a[i]]; renderSide(); save(); }
-  else if (d.key) { sel = {kind:'key', i:+d.key}; slot = 'tap'; ptab = 'controls'; render(); }
-  else if ('knob' in d) { sel = {kind:'knob'}; ptab = 'controls'; render(); }
-  else if (d.slot) { slot = d.slot; render(); }
-  else if (d.ptab) { ptab = d.ptab; PREVIEW = null; render(); }
-  else if (d.live) setLive(d.live);
+  else if (d.key) { if (sel.kind !== 'key' || sel.i !== +d.key) withMotion('cards', () => { sel = {kind:'key', i:+d.key}; slot = 'tap'; ptab = 'controls'; render(); }); }
+  else if ('knob' in d) { if (sel.kind !== 'knob') withMotion('cards', () => { sel = {kind:'knob'}; ptab = 'controls'; render(); }); }
+  else if (d.slot) { if (slot !== d.slot) withMotion('cards', () => { slot = d.slot; render(); }); }
+  else if (d.acat) { if (ACAT[d.apath] !== d.acat) withMotion('cards', () => { ACAT[d.apath] = d.acat; render(); }); }
+  else if (d.ptab) { if (ptab !== d.ptab) withMotion('cards', () => { ptab = d.ptab; PREVIEW = null; render(); }); }
+  else if (d.live) { if ((P().live?.type || 'none') !== d.live) withMotion('detail', () => setLive(d.live)); }
   else if (d.flip) { S.settings.flip = d.flip === '1'; render(); save(); }
   else if (d.tpl) { readNew(); NEW.tpl = d.tpl; NEW.name = ''; NEW.sensor = ''; newDialog(); }
   else if (d.preview) { const [color, fx] = d.preview.split('|'); PREVIEW = {color, fx, level:1}; render(); }
   else if (d.act) { e.preventDefault(); ACTS[d.act]?.(t); }
-  else if (d.atype) { if (d.atype !== getPath(P(), d.apath)) retype(d.apath, d.atype); }
+  else if (d.atype) {
+    if (d.atype === 'none') ACAT[d.apath] ||= ACTIONS[getPath(P(), d.apath)]?.g;  // Clear keeps the menu on the category you were in
+    if (d.atype !== getPath(P(), d.apath)) withMotion('detail', () => retype(d.apath, d.atype)); }
 });
 
 function guessEntity(p, domain) {

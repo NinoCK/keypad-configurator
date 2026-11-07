@@ -308,11 +308,14 @@ def test_config():
 
 def test_light():
     from keypadstudio.device import light_config
+    from keypadstudio.lighting import firmware as _fw
     c = light_config("#ff0000", "steady", 1)
     assert (c.mode, c.brightness, c.color, c.h, c.s, c.v) == (1, 1, 1, 0, 100, 100)
     assert light_config("#4f8cff", "breath", 2).mode == 2
     assert light_config("#4f8cff", "steady", 0).mode == 0  # brightness 0 = off
     assert light_config("#ff0000", "steady", 1, level=0.5).v == 50
+    rb = light_config(*_fw({"color": "#fff", "fx": "rainbow-wave", "level": 0.5})[:2], 2, level=0.5)
+    assert (rb.color, rb.mode, rb.v) == (0, 4, 50)  # palette, tidal, level still applies
 
 
 def test_home_timeout():
